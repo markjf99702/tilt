@@ -2,13 +2,14 @@
 // so a change to a table or the physics can be judged by numbers as well as by feel.
 //   node tools/tune.mjs [games=60] [table=classic]
 // The autopilot flips whenever the ball comes down to a flipper, a little late at random, like a fair player.
-// Drains are told apart by the table's 'outlane' and 'inlane' rollovers (side 1 is the left).
+// Drains are told apart by the table's 'outlane' and 'inlane' rollovers (side 1 is the left). It follows one
+// ball at a time: in multiball it would count each ball lost as a drain.
 import { TABLES } from '../js/tables.js';
 import { NORMAL } from '../js/settings.js';
 
 const GAMES = Number(process.argv[2]) || 60;
-const table = TABLES[process.argv[3] || 'classic'];
-if (!table) { console.error(`No table "${process.argv[3]}". Tables: ${Object.keys(TABLES).join(', ')}`); process.exit(1); }
+const name = process.argv[3] || 'classic', table = Object.hasOwn(TABLES, name) ? TABLES[name] : null;
+if (!table) { console.error(`No table "${name}". Tables: ${Object.keys(TABLES).join(', ')}`); process.exit(1); }
 const FRAME = 1 / 60;
 
 function seed(n) {

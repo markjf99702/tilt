@@ -13,6 +13,9 @@ export const SCORES = {
 const BONUS_MAX = 39, MULT_MAX = 5;
 
 export class Classic extends Game {
+  // Classic's own adjustment, on top of the machine's: the saucer catches a ball going no faster than this (mm/s).
+  constructor(settings, out) { super({ saucerGrab: 1700, ...settings }, out); }
+
   build() { return buildTable(); }
 
   reset() {

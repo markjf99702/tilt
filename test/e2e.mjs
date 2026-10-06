@@ -1,6 +1,7 @@
 // Plays Tilt in Chromium through the real page:  node test/e2e.mjs  (needs Playwright)
 // Starts a game, launches with the Launch button, flips with touches on each half of the screen,
-// pauses, drains every ball, checks the high score survives a reload, and loads once more offline.
+// pauses, drains every ball, checks the high score survives a reload, and loads once more offline
+// (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -30,10 +31,15 @@ const problems = [];
 page.on('pageerror', e => problems.push(e.message));
 page.on('console', m => { if (m.type() === 'error') problems.push(m.text()); });
 page.on('requestfailed', r => problems.push('failed: ' + r.url()));
-page.on('request', r => { if (!r.url().startsWith(base)) problems.push('left the site: ' + r.url()); });
+const loaded = new Set();
+page.on('request', r => { if (!r.url().startsWith(base)) problems.push('left the site: ' + r.url()); else loaded.add(new URL(r.url()).pathname.slice(1) || './'); });
 
 await page.goto(base);
 await page.evaluate(() => document.fonts.ready);
+
+// Every file the page loads is in the offline copy (a new table's files are easy to forget there).
+const shell = [...(await readFile(join(root, 'sw.js'), 'utf8')).match(/SHELL = \[([^\]]*)\]/)[1].matchAll(/'([^']*)'/g)].map(m => m[1]);
+assert.deepEqual([...loaded].filter(f => f !== 'sw.js' && !shell.includes(f)), [], 'files the page loads but sw.js does not keep');
 
 const peek = () => page.evaluate(() => { const g = window.tilt.game; return { mode: g.mode, state: g.state, ball: g.ballNo, score: g.score, balls: g.world.balls.length, left: g.table.flippers[0].pressed, right: g.table.flippers[1].pressed, pull: g.table.plunger.pull }; });
 

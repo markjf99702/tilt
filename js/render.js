@@ -16,9 +16,9 @@ export class Renderer {
     this.debug = /[?&]debug\b/.test(location.search);
   }
 
-  // Fits the table into the canvas's box, centred, as large as it goes.
-  resize(cssW, cssH, dpr) {
-    const { W, H } = this.table;
+  // Fits the layout t (its W and H) into the canvas's box, centred, as large as it goes.
+  resize(cssW, cssH, dpr, t) {
+    const { W, H } = t;
     this.dpr = dpr;
     this.cssW = cssW; this.cssH = cssH;
     this.cv.width = Math.round(cssW * dpr);
@@ -36,7 +36,7 @@ export class Renderer {
   setSkin(skin) { this.skin = skin; this.dirty = true; }
 
   paintStatic(t) {
-    const { W, H } = this.table;
+    const { W, H } = t;
     const k = this.scale * this.dpr;
     this.layer.width = Math.ceil(W * k);
     this.layer.height = Math.ceil(H * k);
@@ -60,7 +60,7 @@ export class Renderer {
     this.table.draw(ctx, game, skin, now);
     if (game.tilted) {
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.fillRect(0, 0, this.table.W, this.table.H);
+      ctx.fillRect(0, 0, t.W, t.H);
     }
     if (this.debug) drawDebug(ctx, t);
   }

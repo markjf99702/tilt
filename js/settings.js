@@ -1,6 +1,7 @@
 // How the machine is set up. Real games have operator adjustments like these; difficulty levels will be
 // presets of them. Slope is the table's tilt in degrees; flipper speeds are in radians per second;
-// launch speeds in millimetres per second.
+// launch speeds in millimetres per second. These are the same on every table; a table's rules add any
+// adjustments for its own toys (see Classic's saucerGrab).
 //
 // timeScale runs the ball's world a little slower than the clock: on a phone-sized table a real machine's
 // pace is hard to follow, so everything the ball does plays at three quarters of real speed. The player's
@@ -17,5 +18,4 @@ export const NORMAL = {
   ballSave: 8,
   tiltWarnings: 2,
   balls: 3,
-  saucerGrab: 1700,
 };

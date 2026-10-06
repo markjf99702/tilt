@@ -26,6 +26,9 @@ const game = new table.Game({ ...NORMAL }, {
 let paused = false;
 game.start('attract');
 
+// How to play: the controls are the same on every table, then come the table's own rules.
+for (const h of table.howTo) $('howTo').insertAdjacentHTML('beforeend', `<li>${h}</li>`);
+
 // ---------- saved things ----------
 function load() {
   try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; }
@@ -44,7 +47,7 @@ showBest();
 // ---------- layout ----------
 function resize() {
   const st = $('stage'), r = st.getBoundingClientRect();
-  renderer.resize(r.width, r.height, Math.min(2.5, window.devicePixelRatio || 1));
+  renderer.resize(r.width, r.height, Math.min(2.5, window.devicePixelRatio || 1), game.table);
   // The Launch button sits on the apron, just left of the shooter lane, so it never hides the ball.
   const b = $('launch'), s = renderer.scale;
   const edge = renderer.ox + game.table.plunger.x0 * s;

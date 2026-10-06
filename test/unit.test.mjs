@@ -38,7 +38,7 @@ for (const table of Object.values(TABLES)) {
       g.autopilot(); g.update(1 / 60);
       const b = g.world.balls[0];
       if (!b) continue;
-      assert.ok(b.x > -1 && b.x < table.W + 1 && b.y > -1, `escaped at ${b.x}, ${b.y}`);
+      assert.ok(b.x > -1 && b.x < g.table.W + 1 && b.y > -1, `escaped at ${b.x}, ${b.y}`);
       if (g.state === 'live' && !b.held) {
         still = last && Math.hypot(b.x - last.x, b.y - last.y) < 0.3 ? still + 1 / 60 : 0;
         worst = Math.max(worst, still);

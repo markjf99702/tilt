@@ -1,21 +1,25 @@
 // Classic: a late-70s solid-state table, and everything that makes it itself. The machine around it
 // (physics, flippers, plunger, controls, sound, menus and the clock) is shared by every table.
 
-import { buildTable, W, H } from './layout.js';
+import { buildTable } from './layout.js';
 import { Classic } from './rules.js';
 import { paint, draw } from './draw.js';
 import { SKINS } from './skins.js';
 
 export default {
   name: 'Classic',
-  W, H,                 // its size in millimetres: the renderer fits this box to the screen
-  build: buildTable,    // a fresh layout: W and H, walls, posts, sensors, flippers (each with a side), plunger,
-                        // and a 'laneExit' line across the top of the shooter lane: past it, the ball is in play
+  build: buildTable,    // a fresh layout: its size in millimetres (W and H, which the renderer fits to the screen),
+                        // walls, posts, sensors, flippers (each with a side), plunger, and a 'laneExit' line across
+                        // the top of the shooter lane: past it, the ball is in play
   Game: Classic,        // its rules: new table.Game(settings, out)
   skins: SKINS,         // the first one is the default
   paint,                // paint(c, layout, skin): what never changes, into the static layer
   draw,                 // draw(c, game, skin, now): lamps, toys, balls, flippers, plunger and apron, each frame
   scoresKey: 'scores',  // where its top five are saved; Classic keeps the one from before there were tables
+  howTo: [              // its rules, under the controls in How to play on the title card
+    '<b>Skill shot:</b> launch into the flashing top lane for 25,000. The flippers move it.',
+    '<b>Top lanes</b> raise the bonus multiplier and light the bumpers. <b>Standups</b> light the spinner. <b>Drop targets</b> light an extra ball at the kickout in the middle.',
+  ],
   // For the checks every table gets (test/unit.test.mjs and tools/tune.mjs). tune.mjs tells drains apart by
   // 'outlane' and 'inlane' spot sensors with a side (1 is the left).
   checks: {
