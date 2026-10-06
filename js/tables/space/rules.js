@@ -59,7 +59,7 @@ export class Space extends Game {
   }
 
   // The bumpers, slingshots, lift and flasher fade after they fire. Multiball ends once its ball save is over
-  // and only one ball is left in play.
+  // and only one ball is left in play, with none still to be plunged.
   update(dt) {
     const l = this.lamps;
     this.bumperFlash = this.bumperFlash.map(v => Math.max(0, v - dt * 6));
@@ -69,7 +69,7 @@ export class Space extends Game {
     if (l.skill && this.time > this.skillUntil) l.skill = false;
     if (l.multiball) {
       this.stats.mbSecs += dt;
-      if (this.state === 'live' && this.inPlay() < 2 && this.saveUntil <= this.time) this.endMultiball();
+      if (this.state === 'live' && this.inPlay() < 2 && this.saveUntil <= this.time && !this.launching) this.endMultiball();
     }
     super.update(dt);
   }

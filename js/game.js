@@ -29,6 +29,7 @@ export class Game {
     this.state = 'idle'; // lane | live | bonus | idle
     this.saveUntil = 0;
     this.saveArmed = false;
+    this.launching = 0; // balls given back that are waiting for the shooter lane (see launchBall())
     this.timers = [];
   }
 
@@ -140,12 +141,13 @@ export class Game {
     // Held balls (in a saucer, say) are let go when their time is up.
     for (const b of this.world.balls) if (b.held && b.held.until <= this.time) { b.held = null; this.release(b); }
 
-    // Drained balls. The ball is over once the last ball in play has gone (a ball in a lock doesn't count).
+    // Drained balls. The ball is over once the last ball in play has gone (a ball in a lock doesn't count), unless
+    // the last ones went together in the ball save's time, which gives each one back.
     const { W, H } = this.table;
     const gone = this.world.balls.filter(b => b.y > H + 30 || b.x < -50 || b.x > W + 50 || b.y < -80 || !Number.isFinite(b.x + b.y));
     if (gone.length) {
       this.world.balls = this.world.balls.filter(b => !gone.includes(b));
-      if (this.inPlay()) for (const b of gone) this.lost(b);
+      if (this.inPlay() || (gone.length > 1 && !this.tilted && this.saveUntil > this.time)) for (const b of gone) this.lost(b);
       else if (this.state !== 'bonus' && this.state !== 'idle') this.drained();
     }
   }
@@ -171,10 +173,15 @@ export class Game {
     this.launchBall();
   }
 
-  // One more ball into play, plunged hard by the machine itself. If the shooter lane is busy it waits its turn.
+  // One more ball into play, plunged hard by the machine itself. If the shooter lane is busy it waits its turn
+  // (counted in this.launching, so a table doesn't end its multiball while a ball is still to come).
   launchBall() {
     if (this.state !== 'live' || this.tilted) return;
-    if (this.ballInLane()) { this.after(0.5, () => this.launchBall()); return; }
+    if (this.ballInLane()) {
+      this.launching++;
+      this.after(0.5, () => { this.launching--; this.launchBall(); });
+      return;
+    }
     const p = this.table.plunger;
     this.world.balls.push(makeBall((p.x0 + p.x1) / 2, p.y - BALL_R));
     p.pulling = false; p.pull = 1; p.firing = true; p.fireSpeed = this.settings.launchMax;

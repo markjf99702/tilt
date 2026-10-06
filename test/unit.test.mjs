@@ -200,6 +200,21 @@ test('in multiball a ball lost in the ball save comes straight back, and after i
   assert.equal(g.state, 'live');
 });
 
+test('two balls lost at once in the ball save both come back, the second once the shooter lane is clear', () => {
+  const g = new TestGame({ ...NORMAL });
+  g.start('play');
+  g.world.balls[0].y = 720;
+  g.world.balls.push(makeBall(200, 720));
+  g.state = 'live'; g.saveUntil = g.time + g.wsecs(10);
+  g.update(1 / 60);
+  assert.equal(g.state, 'live');
+  assert.equal(g.inPlay(), 1, 'one is plunged at once');
+  assert.equal(g.launching, 1, 'and the other waits its turn');
+  for (let f = 0; f < 60; f++) { for (let i = 0; i < 13; i++) g.world.step(); g.update(1 / 60); }
+  assert.equal(g.inPlay(), 2);
+  assert.equal(g.launching, 0);
+});
+
 // Classic's own tests.
 test('a full plunge goes round the arch and down the left orbit through the spinner', () => {
   const t = buildTable(), w = new World(t, NORMAL);
@@ -554,6 +569,19 @@ test('Space: in multiball the ramp scores the jackpot and the dock lights it aga
   assert.equal(g.state, 'live');
   assert.ok(!l.multiball && !l.jackpotLit);
   assert.equal(g.jackpot, SPACE.jackpot);
+});
+
+test('Space: both balls lost at once in multiball\'s ball save come back, and multiball waits for the second', () => {
+  const g = spaceGame(), [a, b] = startMultiball(g);
+  a.held = b.held = null;
+  a.y = b.y = g.table.H + 100;
+  g.update(1 / 60);
+  assert.equal(g.state, 'live');
+  assert.ok(g.lamps.multiball);
+  g.saveUntil = g.time; // the ball save runs out while the second ball waits for the shooter lane
+  playOn(g, 1);
+  assert.equal(g.inPlay(), 2);
+  assert.ok(g.lamps.multiball, 'multiball ended with a ball still to come');
 });
 
 test('Space: a locked ball stays locked when the ball in play drains', () => {
