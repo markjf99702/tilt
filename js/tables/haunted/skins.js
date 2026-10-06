@@ -18,7 +18,7 @@ export const SKINS = {
     post: '#7dffb5',
     plastic: '#6a2fb0', plasticEdge: '#7dffb5',
     flipperBody: '#efe9df', flipperRubber: '#6a2fb0',
-    bumper: { skirt: '#ff8a1c', cap: '#ff9f2e', capLit: '#ffe08a' }, // pumpkins: the skin, the glow when one fires, its face lit
+    bumper: { skirt: '#ff8a1c', cap: '#ff9f2e', capLit: '#ffe08a' }, // pumpkins: the rind, the glow when one fires, the face lit up
     house: '#3d2266', houseEdge: '#a77bff', roof: '#24123f',
     ghost: '#c9ffe6', ghostGlow: '#7dffc4',
     lamps: { yellow: '#ffd23f', red: '#ff4d4d', green: '#7dffb5', orange: '#ff9f1c', candle: '#ffcf5a' },

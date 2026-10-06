@@ -18,7 +18,7 @@ export default {
   floors: [0, BASEMENT], // the house, then the basement under it: the screen shows the one the ball is on
   scoresKey: 'hauntedScores',
   howTo: [
-    '<b>Ghosts</b> glow now and then, in the windows and on the walls. Hit one while it glows to catch it. Catch two and the <b>front door</b> opens. While it\'s shut, a hard shot knocks on it and wakes a ghost.',
+    '<b>Ghosts</b> glow now and then, in the windows and on the walls. Hit one while it glows to catch it. Each one lights a candle under the house, and once they\'re all lit the <b>front door</b> opens. While it\'s shut, a hard shot knocks on it and wakes a ghost.',
     '<b>Trapdoor:</b> shoot through the open door and the ball drops into the <b>basement</b>, a little table of its own. Knock the lid off the coffin to light an <b>extra ball</b>, then take the stairs back up.',
     '<b>Skill shot:</b> launch into the flashing top lane for 25,000. The flippers move it. <b>Top lanes</b> raise the bonus multiplier.',
   ],
