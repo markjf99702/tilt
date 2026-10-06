@@ -405,6 +405,17 @@ test('Space: nothing holds a ball still anywhere on the ramp', () => {
   }
 });
 
+test('Space: a ball that drops onto the foot of the ramp from above rolls off it', () => {
+  // Under the ramp's incline the funnel is closed off, and nothing sits on top of it.
+  for (let x = 186; x <= 240; x += 3) {
+    const w = new World(buildSpace(), NORMAL), b = makeBall(x, 340);
+    w.balls.push(b);
+    let ms = 0;
+    while (b.y < 400 && ms < 2000) { w.step(); w.events.length = 0; ms++; }
+    assert.ok(b.y >= 400, `a ball let go at ${x}, 340 was still up at ${b.x.toFixed(0)}, ${b.y.toFixed(0)} after 2 s`);
+  }
+});
+
 test('Space: from a cradle, the upper flipper has a clear shot at the dock', () => {
   // The ball settles on the raised flipper; then it's let go and flipped again at every moment from there.
   const t0 = buildSpace(), w0 = new World(t0, NORMAL), cradled = makeBall(455, 470);
@@ -427,24 +438,37 @@ test('Space: from a cradle, the upper flipper has a clear shot at the dock', () 
   assert.ok(ms >= 40, `the dock's window is only ${ms} ms`);
 });
 
+// The ball is resting on flipper f.
+function cradled(f, b) {
+  const { px, py, tx, ty } = flipperEnds(f), q = closestOnSeg(b.x, b.y, px, py, tx, ty);
+  return Math.hypot(b.x - q.x, b.y - q.y) < BALL_R + f.r0 + (f.r1 - f.r0) * q.t + 0.5 && Math.hypot(b.vx, b.vy) < 5;
+}
+
+test('Space: held up, the upper flipper catches a ball coming down the feed lane', () => {
+  for (const vy of [100, 400, 800]) for (const x of [446, 457, 469]) {
+    const t = buildSpace(), w = new World(t, NORMAL), f = t.flippers[2], b = makeBall(x, 380);
+    b.vy = b.wy = vy; f.pressed = true; w.balls.push(b);
+    run(w, 3000, () => { w.events.length = 0; });
+    assert.ok(cradled(f, b), `a ball down the feed lane at ${vy} mm/s from x ${x} ended up at ${b.x.toFixed(0)}, ${b.y.toFixed(0)}`);
+  }
+});
+
 test('Space: a soft launch comes down onto the upper flipper; a full one goes round the arch the other way from the orbit', () => {
-  // The skill shot: launched softly with the right button held, the ball comes down the feed lane onto the raised flipper.
+  // The skill shot: launched softly with the right button held, the ball comes down the feed lane and stays on the
+  // raised flipper.
   const launch = (pull, held) => {
     const t = buildSpace(), w = new World(t, NORMAL), p = t.plunger, f = t.flippers[2];
     const b = makeBall((p.x0 + p.x1) / 2, p.y - BALL_R); w.balls.push(b);
     p.pull = pull; p.firing = true; p.fireSpeed = NORMAL.launchMin + (NORMAL.launchMax - NORMAL.launchMin) * Math.pow(pull, 0.9);
     f.pressed = held;
-    let touched = false;
     const orbit = [];
-    run(w, 3000, () => {
-      const { px, py, tx, ty } = flipperEnds(f), q = closestOnSeg(b.x, b.y, px, py, tx, ty);
-      if (Math.hypot(b.x - q.x, b.y - q.y) < BALL_R + f.r0 + (f.r1 - f.r0) * q.t + 0.5) touched = true;
+    run(w, 4000, () => {
       for (const e of w.events) if (e.obj.id === 'orbit') orbit.push(e.dir);
       w.events.length = 0;
     });
-    return { touched, orbit };
+    return { cradled: cradled(f, b), orbit };
   };
-  assert.ok(launch(0.25, true).touched, 'a soft launch missed the upper flipper');
+  assert.ok(launch(0.25, true).cradled, 'a soft launch didn\'t end up on the upper flipper');
   const { orbit } = launch(1, false);
   assert.ok(orbit.length && orbit.every(d => d === 1), `a full launch crossed the orbit ${orbit}`);
 });

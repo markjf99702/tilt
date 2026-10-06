@@ -93,7 +93,8 @@ export function buildTable() {
     seg(260, 478, 235, 420, { r: 3, e: 0.3, kind: 'ramp', level });
   }
   // Under the ramp the funnel is closed off here. Above this the ramp is high enough for a ball to roll under it.
-  chain([[189, 420], [190, 389], [236, 389], [235, 420]], { r: 3, e: 0.3, kind: 'ramp' });
+  // The top slopes, so a ball that drops onto it can't sit there: it rolls off to the left, towards the left flipper.
+  chain([[189, 420], [190, 396], [236, 380], [235, 420]], { r: 3, e: 0.3, kind: 'ramp' });
   // Its rails, 23 mm either side of the centre line from the top of the funnel on (right and left as the ball goes).
   const rail = side => path.slice(1).map((p, i, cl) => {
     const a = cl[Math.max(0, i - 1)], b = cl[Math.min(cl.length - 1, i + 1)];
@@ -144,11 +145,13 @@ export function buildTable() {
   }
 
   // ---- flippers ----
-  // The upper flipper works with the right button, and comes third: the lower two are always first.
+  // The upper flipper works with the right button, and comes third: the lower two are always first. Held up, it
+  // slopes back steeply enough to stop a ball coming down the feed lane and cradle it against the end of the rail
+  // above, ready to shoot at the dock.
   const flippers = [
     { side: 'left', x: 150, y: 925, len: 80, r0: 11, r1: 6, rest: 30 * DEG, up: -28 * DEG, e: 0.4 },
     { side: 'right', x: mx(150), y: 925, len: 80, r0: 11, r1: 6, rest: 150 * DEG, up: 208 * DEG, e: 0.4 },
-    { side: 'right', x: 466, y: 548, len: 72, r0: 10, r1: 6, rest: 140 * DEG, up: 192 * DEG, e: 0.4 },
+    { side: 'right', x: 466, y: 548, len: 72, r0: 10, r1: 6, rest: 140 * DEG, up: 204 * DEG, e: 0.4 },
   ].map(f => ({ ...f, angle: f.rest, omega: 0, pressed: false }));
 
   return {
