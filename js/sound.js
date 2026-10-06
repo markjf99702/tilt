@@ -90,6 +90,10 @@ export function play(name, o = {}) {
       [0, 0.12, 0.24, 0.36, 0.48, 0.6, 0.84].forEach((d, i) => bell(t + d, [523, 659, 784, 1047, 784, 1047, 1568][i], 0.22));
       tone(t, 131, 1.1, 0.25, 'sawtooth', 262);
       break;
+    case 'ghost': tone(t, 660, 0.5, 0.16, 'sine', 440); tone(t + 0.08, 990, 0.45, 0.07, 'sine', 620); break;
+    case 'knock': noise(t, 0.06, 240, 1, 0.9, 'lowpass'); noise(t + 0.14, 0.06, 240, 1, 0.9, 'lowpass'); break;
+    case 'trapdoor': noise(t, 0.12, 300, 0.8, 0.9, 'lowpass'); tone(t + 0.05, 330, 0.6, 0.2, 'triangle', 82); break;
+    case 'stairs': [0, 0.09, 0.18, 0.27].forEach((d, i) => noise(t + d, 0.05, 400 + i * 160, 1.5, 0.5, 'lowpass')); break;
     case 'plunge': noise(t, 0.12, 500 + o.power * 900, 0.8, 0.5 + o.power * 0.5); break;
     case 'thud': if (ok('thud', 0.05)) noise(t, 0.05, 400, 1, Math.min(0.6, o.speed / 3000), 'lowpass'); break;
     case 'nudge': noise(t, 0.12, 120, 0.7, 1, 'lowpass'); break;

@@ -2,5 +2,6 @@
 // Its files also go in sw.js's SHELL, so it plays offline (test/e2e.mjs checks).
 import classic from './tables/classic/index.js';
 import space from './tables/space/index.js';
+import haunted from './tables/haunted/index.js';
 
-export const TABLES = { classic, space };
+export const TABLES = { classic, space, haunted };

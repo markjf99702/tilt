@@ -1,7 +1,7 @@
 {
   "name": "Tilt",
   "short_name": "Tilt",
-  "description": "Two pinball tables, in your pocket.",
+  "description": "Three pinball tables, in your pocket.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

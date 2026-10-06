@@ -8,6 +8,8 @@ import { buildTable, H } from '../js/tables/classic/layout.js';
 import { Classic, SCORES } from '../js/tables/classic/rules.js';
 import { buildTable as buildSpace, HAIRPIN } from '../js/tables/space/layout.js';
 import { Space, SCORES as SPACE } from '../js/tables/space/rules.js';
+import { buildTable as buildHaunted, MID as HMID } from '../js/tables/haunted/layout.js';
+import { Haunted, SCORES as HAUNTED } from '../js/tables/haunted/rules.js';
 import { NORMAL } from '../js/settings.js';
 
 const run = (w, ms, each) => { for (let i = 0; i < ms; i++) { w.step(); each?.(i); } };
@@ -746,4 +748,251 @@ test('Space: a tilt ends the ball with no bonus: in multiball no ball comes back
   assert.equal(g.score, score);
   assert.equal(g.ballNo, 2);
   assert.ok(g.world.balls.includes(first) && first.locked, 'the locked ball is still there');
+});
+
+// ---------- Haunted House ----------
+
+// A game of Haunted House in play, its ball held still in the middle of the house's playfield.
+function hauntedGame(settings = {}) {
+  const g = new Haunted({ ...NORMAL, ...settings });
+  g.start('play');
+  const b = g.world.balls[0];
+  g.event({ type: 'cross', obj: g.table.laneExit, ball: b, dir: -1, speed: 1000 });
+  Object.assign(b, { x: HMID, y: 600, held: { until: Infinity } });
+  return [g, b];
+}
+const glow = (g, i) => { g.ghosts[i].lit = true; g.ghosts[i].until = Infinity; };
+const hitGhost = (g, i, ball) => g.event({ type: 'hit', obj: g.table.ghosts[i], ball, speed: 500 });
+const enter = (g, obj, ball) => g.event({ type: 'enter', obj, ball, speed: 500 });
+
+// What a shot on Haunted House makes first: the trapdoor, the door, a ghost, the stairs, a lid (or nothing, 'miss').
+function hauntedShot(t, b, fi, ms = 2500) {
+  const w = new World(t, NORMAL), f = t.flippers[fi];
+  f.pressed = true; w.balls.push(b);
+  for (let i = 0; i < ms && b.y < t.H + 30; i++) {
+    if (i === 200) f.pressed = false;
+    w.step();
+    for (const e of w.events) {
+      if (e.type === 'enter' && ['trapdoor', 'stairs', 'lane', 'outlane'].includes(e.obj.id)) return e.obj.id;
+      if (e.type === 'hit' && e.obj.kind === 'lid') return 'lid';
+      if ((e.type === 'hit' || e.type === 'kick') && ['ghost', 'door', 'bumper', 'coffin'].includes(e.obj.kind) && e.speed > 80) return e.obj.kind;
+    }
+    w.events.length = 0;
+    if (i > 200 && b.vy > 0 && b.y > 750) return 'miss';
+  }
+  return 'miss';
+}
+// A ball settled on raised flipper fi, let go and flipped again at every moment up to 800 ms later: how many
+// milliseconds of that timing make `want` first. open: the front door is open.
+function hauntedCradle(fi, want, open = false) {
+  const build = () => { const t = buildHaunted(); t.door.off = open; return t; };
+  const t0 = build(), w0 = new World(t0, NORMAL), f0 = t0.flippers[fi], b0 = makeBall(f0.side === 'left' ? 200 : 286, 860);
+  b0.level = f0.level; f0.pressed = true; f0.angle = f0.up; w0.balls.push(b0);
+  run(w0, 1500, () => { w0.events.length = 0; });
+  let ms = 0;
+  for (let flip = 0; flip <= 800; flip += 5) {
+    const t = build(), w = new World(t, NORMAL), f = t.flippers[fi], b = { ...b0, inside: new Set() };
+    f.angle = f.up; w.balls.push(b);
+    run(w, flip, () => { w.events.length = 0; });
+    if (hauntedShot(t, b, fi) === want) ms += 5;
+  }
+  return ms;
+}
+
+test('Haunted: the ghosts glow some of the time, never more than two at once, and not while the ball is downstairs', () => {
+  seed(5);
+  const [g, b] = hauntedGame(), lit = [0, 0, 0, 0];
+  let frames = 0, most = 0;
+  for (let f = 0; f < 120 * 60; f++) {
+    for (let i = 0; i < 13; i++) g.world.step();
+    g.update(1 / 60);
+    frames++;
+    g.ghosts.forEach((x, i) => { if (x.lit) lit[i]++; });
+    most = Math.max(most, g.ghosts.filter(x => x.lit).length);
+  }
+  for (const n of lit) assert.ok(n / frames > 0.25 && n / frames < 0.55, `a ghost glowed ${(100 * n / frames).toFixed(0)}% of the time`);
+  assert.equal(most, 2);
+  g.lamps.doorOpen = true; b.held = null;
+  enter(g, g.table.trapdoor, b);
+  playOn(g, 0.6);
+  assert.equal(g.floor, 1);
+  b.held = { until: Infinity };
+  for (let f = 0; f < 10 * 60; f++) { for (let i = 0; i < 13; i++) g.world.step(); g.update(1 / 60); assert.ok(g.ghosts.every(x => !x.lit)); }
+});
+
+test('Haunted: two ghosts caught open the front door, then three, then four; a dark ghost catches nothing', () => {
+  const [g, b] = hauntedGame(), l = g.lamps;
+  let score = g.score;
+  hitGhost(g, 0, b);
+  assert.equal(g.score - score, HAUNTED.ghostDark);
+  assert.equal(l.caught, 0);
+  const paid = [];
+  for (const need of [2, 3, 4, 4]) {
+    for (let k = 0; k < need; k++) {
+      assert.ok(!l.doorOpen, `the door opened after ${k} of ${need}`);
+      glow(g, k); score = g.score; hitGhost(g, k, b); paid.push(g.score - score);
+    }
+    assert.ok(l.doorOpen);
+    g.update(0);
+    assert.ok(g.table.door.off, 'the door is open but still in the way');
+    b.held = null;
+    enter(g, g.table.trapdoor, b);
+    assert.ok(!l.doorOpen && b.held, 'the trapdoor did not take the ball');
+  }
+  // Each ghost caught on a ball is worth 5,000 more than the last, up to 25,000.
+  assert.deepEqual(paid.slice(0, 6), [5000, 10000, 15000, 20000, 25000, 25000]);
+});
+
+test('Haunted: a hard shot at the shut door knocks on it and wakes a ghost; a soft one does nothing', () => {
+  const [g, b] = hauntedGame();
+  const door = speed => g.event({ type: 'hit', obj: g.table.door, ball: b, speed });
+  let score = g.score;
+  door(100);
+  assert.equal(g.score, score);
+  assert.ok(g.ghosts.every(x => !x.lit));
+  door(400);
+  assert.equal(g.score - score, HAUNTED.knock);
+  assert.equal(g.ghosts.filter(x => x.lit).length, 1);
+});
+
+test('Haunted: from a cradle, each flipper can shoot through the open door, or knock on it while it is shut', () => {
+  for (const fi of [0, 1]) {
+    const trap = hauntedCradle(fi, 'trapdoor', true), knock = hauntedCradle(fi, 'door');
+    assert.ok(trap >= 30, `the trapdoor's window from the ${['left', 'right'][fi]} flipper is only ${trap} ms`);
+    assert.ok(knock >= 60, `the door's window from the ${['left', 'right'][fi]} flipper is only ${knock} ms`);
+  }
+});
+
+test('Haunted: the trapdoor takes the ball only while the door is open, down the chute to the left flipper', () => {
+  for (const flip of [true, false]) {
+    const [g, b] = hauntedGame();
+    b.held = null;
+    enter(g, g.table.trapdoor, b);
+    assert.ok(!b.held, 'the shut door let the ball through');
+    g.lamps.doorOpen = true;
+    enter(g, g.table.trapdoor, b);
+    assert.ok(b.held);
+    playOn(g, 0.6);
+    assert.equal(g.floor, 1);
+    assert.equal(b.level, 1);
+    if (flip) {
+      g.flip('left', true);
+      playOn(g, 6);
+      assert.ok(cradled(g.table.flippers[2], b), `the ball came down the chute to ${b.x.toFixed(0)}, ${b.y.toFixed(0)}`);
+    } else {
+      let secs = 0;
+      while (g.ballNo === 1 && g.state === 'live' && secs < 10) { playOn(g, 0.1); secs += 0.1; }
+      assert.ok(secs < 6, `an unflipped ball from the chute was still in play after ${secs.toFixed(1)} s`);
+    }
+  }
+});
+
+test('Haunted: in the basement, the left flipper has a shot at the stairs and both have shots at the coffin lid', () => {
+  const stairs = hauntedCradle(2, 'stairs');
+  assert.ok(stairs >= 60, `the stairs' window is only ${stairs} ms`);
+  for (const fi of [2, 3]) {
+    const lid = hauntedCradle(fi, 'lid');
+    assert.ok(lid >= 80, `the lid's window from the ${['left', 'right'][fi - 2]} flipper is only ${lid} ms`);
+  }
+});
+
+test('Haunted: the stairs bring the ball back up, out of the cellar door to the right flipper, and the ghosts wake', () => {
+  for (const flip of [true, false]) {
+    const [g, b] = hauntedGame();
+    g.lamps.doorOpen = true; b.held = null;
+    enter(g, g.table.trapdoor, b);
+    playOn(g, 0.6);
+    b.held = null;
+    enter(g, g.table.stairs, b);
+    playOn(g, 0.6);
+    assert.equal(g.floor, 0);
+    assert.equal(b.level, 0);
+    if (flip) {
+      g.flip('right', true);
+      playOn(g, 4);
+      assert.ok(cradled(g.table.flippers[1], b), `the ball came out of the cellar to ${b.x.toFixed(0)}, ${b.y.toFixed(0)}`);
+      assert.ok(g.ghosts.some(x => x.lit) || g.ghosts.some(x => x.until < g.time + g.wsecs(1)), 'the ghosts stayed asleep');
+    } else {
+      let secs = 0;
+      while (g.ballNo === 1 && g.state === 'live' && secs < 10) { playOn(g, 0.1); secs += 0.1; }
+      assert.ok(secs < 4, `an unflipped ball from the cellar was still in play after ${secs.toFixed(1)} s`);
+    }
+  }
+});
+
+test('Haunted: the coffin lid lights an extra ball at the stairs once a game; after that it is worth 50,000', () => {
+  const [g, b] = hauntedGame(), l = g.lamps;
+  const lids = () => { for (const d of g.table.lids) g.event({ type: 'hit', obj: d, ball: b, speed: 500 }); };
+  lids();
+  assert.ok(l.extraBallLit);
+  playOn(g, 1.5);
+  assert.ok(g.table.lids.every(d => !d.off), 'the lid did not come back');
+  let score = g.score;
+  lids();
+  assert.equal(g.score - score, 3 * HAUNTED.lid + HAUNTED.coffin, 'a lit extra ball is not lit again');
+  b.held = null;
+  enter(g, g.table.stairs, b);
+  assert.ok(!l.extraBallLit && l.shootAgain && g.extraBalls === 1);
+  playOn(g, 1.5);
+  score = g.score;
+  lids();
+  assert.ok(!l.extraBallLit);
+  assert.equal(g.score - score, 3 * HAUNTED.lid + HAUNTED.coffin);
+});
+
+test('Haunted: a ball nobody flips in the basement always drains', () => {
+  seed(9);
+  for (let n = 0; n < 150; n++) {
+    const a = Math.random() * Math.PI * 2, v = Math.random() * 2500;
+    const t = buildHaunted(), w = new World(t, NORMAL), b = makeBall(50 + Math.random() * 386, 450 + Math.random() * 410);
+    b.level = 1; w.balls.push(b);
+    const x = b.x, y = b.y; w.collide(b);
+    if (Math.hypot(b.x - x, b.y - y) > 0.01) continue; // started inside something
+    b.vx = Math.cos(a) * v; b.vy = Math.sin(a) * v;
+    let ms = 0;
+    while (ms < 30000 && b.y < t.H + 30) { w.step(); w.events.length = 0; ms++; }
+    assert.ok(ms < 30000, `still in the basement after 30 s, at ${b.x.toFixed(0)}, ${b.y.toFixed(0)}`);
+  }
+});
+
+test('Haunted: the ball save lasts until the ball first comes down to the flippers', () => {
+  const [g, b] = hauntedGame();
+  playOn(g, 10);
+  assert.ok(g.lamps.ballSave, 'the ball save ran out before the ball came down');
+  Object.assign(b, { held: null, x: 25, y: 800, vx: 0, vy: 300 });
+  playOn(g, 2);
+  assert.equal(g.ballNo, 1);
+  assert.equal(g.state, 'lane', 'a ball down the outlane before it reached the flippers was not given back');
+  const c = g.world.balls[0];
+  g.event({ type: 'cross', obj: g.table.laneExit, ball: c, dir: -1, speed: 1000 });
+  Object.assign(c, { x: HMID, y: 900, vx: 0, vy: 0 });
+  playOn(g, 0.1);
+  Object.assign(c, { x: HMID, y: 600, held: { until: Infinity } });
+  playOn(g, 6);
+  assert.ok(!g.lamps.ballSave, 'the ball save went on after the ball had reached the flippers');
+});
+
+test('Haunted: the bonus counts the ghosts and trips of the ball, times the multiplier', () => {
+  const [g, b] = hauntedGame({ ballSave: 0 });
+  g.counts = { ghosts: 3, trips: 1 }; g.lamps.mult = 2;
+  const score = g.score;
+  Object.assign(b, { held: null, y: g.table.H + 40 });
+  playOn(g, 5);
+  assert.equal(g.ballNo, 2);
+  assert.equal(g.score - score, (3 * HAUNTED.bonusGhost + HAUNTED.bonusTrip) * 2);
+});
+
+test('Haunted: a tilt in the basement ends the ball with no bonus, and the next ball is served upstairs', () => {
+  const [g, b] = hauntedGame();
+  g.lamps.doorOpen = true; b.held = null;
+  enter(g, g.table.trapdoor, b);
+  playOn(g, 0.6);
+  for (let i = 0; i < 6; i++) g.nudge(0, -300);
+  assert.ok(g.tilted);
+  const score = g.score;
+  Object.assign(b, { held: null, y: g.table.H + 40 });
+  playOn(g, 4);
+  assert.equal(g.ballNo, 2);
+  assert.equal(g.floor, 0);
+  assert.equal(g.score, score);
 });

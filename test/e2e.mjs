@@ -1,8 +1,9 @@
 // Plays Tilt in Chromium through the real page:  node test/e2e.mjs  (needs Playwright)
 // Starts a game, launches with the Launch button, flips with touches on each half of the screen,
 // pauses, drains every ball, checks the high score survives a reload, that a link to a table that isn't
-// there opens the first, plays a game of Space from the table picker, checks the screen slides between a table's
-// floors, and loads once more offline (sw.js must keep every file the page loads).
+// there opens the first, plays a game of Space and one of Haunted House (down to its basement and back) from the table
+// picker, checks the screen slides between a table's floors, and loads once more offline (sw.js must keep every file
+// the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -110,7 +111,7 @@ assert.equal(await page.evaluate(() => window.tilt.table.name), 'Classic');
 assert.ok(!new URL(page.url()).searchParams.has('table'), 'the address still names a table that is not there');
 
 // Space, from the picker: its own game, flippers, How to play and high scores, and the address names it.
-assert.deepEqual(await page.$$eval('#tables input', els => els.map(e => [e.value, e.checked])), [['classic', true], ['space', false]]);
+assert.deepEqual(await page.$$eval('#tables input', els => els.map(e => [e.value, e.checked])), [['classic', true], ['space', false], ['haunted', false]]);
 const classicScores = await page.evaluate(() => JSON.stringify(window.tilt.store.scores));
 await page.tap('#tables label:has(input[value="space"])');
 await page.waitForFunction(() => window.tilt.table.name === 'Space');
@@ -143,6 +144,35 @@ await page.reload();
 await page.waitForFunction(() => window.tilt);
 assert.equal(await page.evaluate(() => window.tilt.table.name), 'Space', 'the table played last is still picked');
 assert.ok(await page.isChecked('#tables input[value="space"]'));
+
+// Haunted House, from the picker: four flippers (two on each floor), and a trip down the trapdoor takes the screen to
+// the basement and the stairs bring it back up.
+await page.tap('#tables label:has(input[value="haunted"])');
+await page.waitForFunction(() => window.tilt.table.name === 'Haunted House');
+assert.equal(await page.evaluate(() => window.tilt.game.table.flippers.length), 4);
+assert.match(await page.textContent('#howTo'), /the stairs back up/);
+assert.equal(new URL(page.url()).searchParams.get('table'), 'haunted');
+await page.keyboard.press('Enter');
+await page.waitForSelector('#launch:not([hidden])');
+await touch('touchStart', [{ x: lb.x + lb.width / 2, y: lb.y + lb.height / 2, id: 1 }]);
+await page.waitForTimeout(600);
+await touch('touchEnd', []);
+await page.waitForFunction(() => window.tilt.game.state === 'live', null, { timeout: 5000 });
+await touch('touchStart', [{ x: 330, y: 600, id: 4 }]);
+assert.deepEqual(await page.evaluate(() => window.tilt.game.table.flippers.map(f => f.pressed)), [false, true, false, true]);
+await touch('touchEnd', []);
+await page.evaluate(() => { const g = window.tilt.game, b = g.world.balls[0]; g.lamps.doorOpen = true; g.fall(b); });
+await page.waitForFunction(() => window.tilt.game.floor === 1 && window.tilt.renderer.floor === 1, null, { timeout: 5000 });
+await page.evaluate(() => { const g = window.tilt.game, b = g.world.balls[0]; b.held = null; g.climb(b); });
+await page.waitForFunction(() => window.tilt.game.floor === 0 && window.tilt.game.world.balls[0].level === 0, null, { timeout: 5000 });
+await page.evaluate(() => { const g = window.tilt.game; g.settings.ballSave = 0; g.saveUntil = 0; g.reached = true; });
+for (let i = 0; i < 3; i++) {
+  await page.evaluate(() => { const g = window.tilt.game; const b = g.world.balls[0]; if (b) { b.held = null; b.x = 243; b.y = 980; b.vx = 0; b.vy = 300; g.state = 'live'; } });
+  await page.waitForFunction(n => { const g = window.tilt.game; return g.mode === 'over' || (g.ballNo > n && g.state === 'lane'); }, i + 1, { timeout: 15000 });
+}
+await page.waitForSelector('#over:not([hidden])', { timeout: 5000 });
+assert.equal(await page.evaluate(() => window.tilt.store.hauntedScores.length), 1, 'Haunted House keeps its own scores');
+assert.equal(await page.evaluate(() => JSON.stringify(window.tilt.store.scores)), classicScores, "Classic's scores are left alone");
 await page.goto(base + '?table=classic');
 await page.waitForFunction(() => window.tilt);
 assert.equal(await page.evaluate(() => window.tilt.table.name), 'Classic');
