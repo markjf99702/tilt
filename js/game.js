@@ -5,6 +5,9 @@
 // drained() and lost(), always calling the version here, and fill in flipped(), release() and countBonus() below.
 // A lock holds a ball with held = { until: Infinity } and locked = true: it stays on the table but isn't in
 // play (inPlay()). launchBall() puts another ball into play.
+// A table with a floor under the playfield (a basement, on a level of its own) keeps game.floor, the level the ball is
+// on, and lists its floors from the top down (floors in its index.js): the screen shows that floor, and slides from
+// one to the next as it changes (render.js).
 
 import { World, makeBall, BALL_R } from './physics.js';
 
@@ -31,6 +34,7 @@ export class Game {
     this.saveArmed = false;
     this.launching = 0; // balls given back that are waiting for the shooter lane (see launchBall())
     this.timers = [];
+    this.floor = 0; // the floor the screen shows
   }
 
   // The clock of the ball's world. It runs timeScale times as fast as real time; the rules' own waits
@@ -61,6 +65,7 @@ export class Game {
     this.world.balls.push(b);
     this.state = 'lane';
     this.saveArmed = true;
+    this.floor = 0; // a table with a basement serves every ball upstairs
     if (this.mode === 'play') this.show('Ball ' + this.ballNo, 1.2);
   }
 

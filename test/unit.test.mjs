@@ -40,6 +40,7 @@ for (const table of Object.values(TABLES)) {
     for (let f = 0; f < 60 * 60 * 5; f++) {
       for (let i = 0; i < 17; i++) g.world.step();
       g.autopilot(); g.update(1 / 60);
+      assert.ok((table.floors || [0]).includes(g.floor), `the screen is on floor ${g.floor}`);
       for (const b of g.world.balls) {
         assert.ok(b.x > -1 && b.x < g.table.W + 1 && b.y > -1, `escaped at ${b.x}, ${b.y}`);
         if (g.state === 'live' && !b.held) {
@@ -166,6 +167,42 @@ test('a flipper only meets balls on its own level, and the demo only flips for t
     g.autopilot();
     assert.equal(!!f.cool, level === 0, `the demo ${f.cool ? 'flipped' : "didn't flip"} for a ball on level ${level}`);
   }
+});
+
+// A table with a floor under it: the same box on both levels (a shooter lane down the right), with a wall across the
+// lower one that the playfield doesn't have.
+function twoFloors() {
+  const walls = [], sensors = [];
+  const seg = (ax, ay, bx, by, o = {}) => walls.push({ ax, ay, bx, by, r: 3, e: 0.3, ...o });
+  for (const level of [0, 1]) { seg(0, 0, 300, 0, { level }); seg(0, 0, 0, 680, { level }); seg(260, 200, 260, 680, { level }); }
+  seg(300, 0, 300, 680);
+  seg(0, 400, 260, 400, { level: 1 });
+  sensors.push({ kind: 'line', ax: 260, ay: 200, bx: 300, by: 200, len: 40, tx: 1, ty: 0, nx: 0, ny: 1, id: 'laneExit' });
+  const plunger = { x0: 260, x1: 300, y: 620, travel: 46, pull: 0, pulling: false, firing: false, fireSpeed: 0, pullTime: 0.9 };
+  return { W: 300, H: 680, walls, circles: [], sensors, flippers: [], plunger };
+}
+class TwoFloorGame extends Game { build() { return twoFloors(); } }
+
+test('a floor under the playfield: a ball down there falls just as one up top does, and meets only its own walls', () => {
+  const w = new World(twoFloors(), NORMAL), up = makeBall(130, 100), down = makeBall(130, 100);
+  down.level = 1; w.balls.push(up, down);
+  let parted = null; // where the two first went different ways
+  run(w, 2000, () => { if (parted === null && (up.x !== down.x || up.y !== down.y)) parted = down.y; w.events.length = 0; });
+  assert.ok(parted > 380, `they parted at y ${parted?.toFixed(0)}, above the wall`);
+  assert.ok(up.y > 420, `the ball up top stopped at y ${up.y.toFixed(0)}`);
+  assert.ok(down.y < 400, `the ball below went through its floor's wall, to y ${down.y.toFixed(0)}`);
+});
+
+test('each ball is served upstairs, so the screen goes back up there', () => {
+  const g = new TwoFloorGame({ ...NORMAL, ballSave: 0 });
+  g.start('play');
+  assert.equal(g.floor, 0);
+  const b = g.world.balls[0];
+  b.level = 1; b.x = 130; b.y = 720; g.state = 'live'; g.floor = 1;
+  for (let f = 0; f < 3 * 60; f++) { for (let i = 0; i < 13; i++) g.world.step(); g.update(1 / 60); }
+  assert.equal(g.ballNo, 2);
+  assert.equal(g.floor, 0);
+  assert.equal(g.world.balls[0].level, 0);
 });
 
 test('a locked ball is not in play: the ball ends when the last one in play drains', () => {

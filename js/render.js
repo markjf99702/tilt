@@ -1,6 +1,8 @@
 // Draws a table. Whatever never changes (the playfield, its art and rails) is painted once into an offscreen
 // canvas, again whenever the window, the table or the skin changes; each frame the table draws its lamps,
 // moving parts and balls on top. The helpers below are shared by every table's own drawing.
+// A table with a floor under the playfield has a canvas for each floor, and the screen shows the one the ball is on
+// (game.floor), sliding down to it or back up as that changes.
 
 import { BALL_R, flipperEnds } from './physics.js';
 
@@ -10,7 +12,7 @@ export class Renderer {
   constructor(canvas) {
     this.cv = canvas;
     this.ctx = canvas.getContext('2d');
-    this.layer = document.createElement('canvas');
+    this.layers = new Map(); // floor -> its static layer (most tables have just the one, the playfield's)
     this.table = null; // the table's module (from tables.js); game.table is the layout it built
     this.skin = null;
     this.debug = /[?&]debug\b/.test(location.search);
@@ -32,39 +34,68 @@ export class Renderer {
   // Screen point (CSS pixels, relative to the canvas) to table millimetres.
   toTable(px, py) { return { x: (px - this.ox) / this.scale, y: (py - this.oy) / this.scale }; }
 
-  setTable(table) { this.table = table; this.dirty = true; }
+  setTable(table) { this.table = table; this.dirty = true; this.floor = undefined; this.slide = null; }
   setSkin(skin) { this.skin = skin; this.dirty = true; }
 
   paintStatic(t) {
     const { W, H } = t;
     const k = this.scale * this.dpr;
-    this.layer.width = Math.ceil(W * k);
-    this.layer.height = Math.ceil(H * k);
-    const c = this.layer.getContext('2d');
-    c.setTransform(k, 0, 0, k, 0, 0);
-    this.table.paint(c, t, this.skin);
+    for (const floor of this.table.floors || [0]) {
+      const layer = this.layers.get(floor) || document.createElement('canvas');
+      layer.width = Math.ceil(W * k);
+      layer.height = Math.ceil(H * k);
+      const c = layer.getContext('2d');
+      c.setTransform(k, 0, 0, k, 0, 0);
+      this.table.paint(c, t, this.skin, floor);
+      this.layers.set(floor, layer);
+    }
     this.dirty = false;
   }
 
   draw(game, now) {
-    const { ctx, skin } = this;
+    const { ctx } = this;
     const t = game.table;
     if (this.dirty) this.paintStatic(t);
-    const k = this.scale * this.dpr;
+    // The ball has gone to another floor: slide there, down the table's floors or back up them (or, for someone who
+    // has asked for less motion, cut straight to it).
+    if (game.floor !== this.floor) {
+      const still = this.floor === undefined || matchMedia('(prefers-reduced-motion: reduce)').matches;
+      this.slide = still ? null : { from: this.floor, at: now };
+      this.floor = game.floor;
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#05070d';
     ctx.fillRect(0, 0, this.cv.width, this.cv.height);
-    ctx.setTransform(k, 0, 0, k, this.ox * this.dpr, this.oy * this.dpr);
-    ctx.drawImage(this.layer, 0, 0, this.layer.width, this.layer.height, 0, 0, this.layer.width / k, this.layer.height / k);
+    const p = this.slide ? (now - this.slide.at) / SLIDE : 1;
+    if (p < 1) {
+      const e = p * p * (3 - 2 * p), fs = this.table.floors, dir = Math.sign(fs.indexOf(this.floor) - fs.indexOf(this.slide.from));
+      this.drawFloor(game, now, this.slide.from, -dir * e * t.H);
+      this.drawFloor(game, now, this.floor, dir * (1 - e) * t.H);
+    } else {
+      this.slide = null;
+      this.drawFloor(game, now, this.floor, 0);
+    }
+  }
 
-    this.table.draw(ctx, game, skin, now);
+  // One floor, dy millimetres down the screen. While it slides it's cut off at the table's edges.
+  drawFloor(game, now, floor, dy) {
+    const { ctx, skin } = this, t = game.table, layer = this.layers.get(floor);
+    const k = this.scale * this.dpr;
+    ctx.setTransform(k, 0, 0, k, this.ox * this.dpr, (this.oy + dy * this.scale) * this.dpr);
+    if (dy) { ctx.save(); ctx.beginPath(); ctx.rect(0, Math.max(0, -dy), t.W, t.H - Math.abs(dy)); ctx.clip(); }
+    ctx.drawImage(layer, 0, 0, layer.width, layer.height, 0, 0, layer.width / k, layer.height / k);
+
+    this.table.draw(ctx, game, skin, now, floor);
     if (game.tilted) {
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.fillRect(0, 0, t.W, t.H);
     }
-    if (this.debug) drawDebug(ctx, t);
+    if (this.debug) drawDebug(ctx, t, floor, this.table.floors);
+    if (dy) ctx.restore();
   }
 }
+
+const SLIDE = 450; // ms the screen takes to slide from one floor to the next
 
 // ---------- the static layer ----------
 // Rails, guides, rubbers, gate wires and posts: the parts of a layout that never move. They are told apart by
@@ -195,16 +226,22 @@ export function drawPlunger(c, t, s) {
 }
 
 // ?debug: the playfield's outlines in green and a ramp's (any other level) in orange; sensors in magenta, lifts in yellow.
-function drawDebug(c, t) {
+// Only the floor on the screen: a basement's outlines show there, not over the playfield.
+function drawDebug(c, t, floor, floors = [0]) {
+  const away = o => (o.level || 0) !== floor && floors.includes(o.level || 0);
   c.save();
   c.lineWidth = 1;
   for (const w of t.walls) {
-    if (w.off) continue;
-    c.strokeStyle = w.level ? 'orange' : 'lime';
+    if (w.off || away(w)) continue;
+    c.strokeStyle = (w.level || 0) !== floor ? 'orange' : 'lime';
     c.beginPath(); c.moveTo(w.ax, w.ay); c.lineTo(w.bx, w.by); c.stroke();
   }
-  for (const p of t.circles) { c.strokeStyle = p.level ? 'orange' : 'lime'; c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.stroke(); }
+  for (const p of t.circles) {
+    if (away(p)) continue;
+    c.strokeStyle = (p.level || 0) !== floor ? 'orange' : 'lime'; c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.stroke();
+  }
   for (const s of t.sensors) {
+    if (away(s)) continue;
     c.strokeStyle = s.to !== undefined ? 'yellow' : 'magenta';
     c.beginPath();
     if (s.kind === 'line') { c.moveTo(s.ax, s.ay); c.lineTo(s.bx, s.by); } else c.arc(s.x, s.y, s.r, 0, TAU);

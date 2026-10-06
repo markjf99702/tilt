@@ -1,8 +1,8 @@
 // Plays Tilt in Chromium through the real page:  node test/e2e.mjs  (needs Playwright)
 // Starts a game, launches with the Launch button, flips with touches on each half of the screen,
 // pauses, drains every ball, checks the high score survives a reload, that a link to a table that isn't
-// there opens the first, plays a game of Space from the table picker, and loads once more offline (sw.js must
-// keep every file the page loads).
+// there opens the first, plays a game of Space from the table picker, checks the screen slides between a table's
+// floors, and loads once more offline (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -146,6 +146,42 @@ assert.ok(await page.isChecked('#tables input[value="space"]'));
 await page.goto(base + '?table=classic');
 await page.waitForFunction(() => window.tilt);
 assert.equal(await page.evaluate(() => window.tilt.table.name), 'Classic');
+
+// The screen slides between a table's floors, down to the one the ball is on and back up: a made-up table with two,
+// the top one red and the one under it blue. Someone who asks for less motion gets a cut instead.
+const slide = () => page.evaluate(async () => {
+  const { Renderer } = await import('./js/render.js');
+  const r = new Renderer(document.createElement('canvas')), layout = { W: 100, H: 200, walls: [], circles: [], sensors: [] };
+  r.setTable({ floors: [0, 1], paint: (c, t, s, floor) => { c.fillStyle = floor ? '#00f' : '#f00'; c.fillRect(0, 0, t.W, t.H); }, draw() {} });
+  r.resize(100, 200, 1, layout);
+  const game = { table: layout, floor: 0 };
+  const at = (now, y) => { r.draw(game, now); const [red, , blue] = r.ctx.getImageData(50, y, 1, 1).data; return red > 200 ? 'top' : blue > 200 ? 'under' : '?'; };
+  const seen = [at(0, 100)];
+  game.floor = 1;
+  seen.push(at(1000, 150), at(1225, 50), at(1225, 150), at(1500, 50));
+  game.floor = 0;
+  seen.push(at(2000, 50), at(2225, 50), at(2225, 150), at(2500, 150));
+  return seen;
+});
+assert.deepEqual(await slide(), ['top', 'top', 'top', 'under', 'under', 'under', 'top', 'under', 'top']);
+await page.emulateMedia({ reducedMotion: 'reduce' });
+assert.deepEqual(await slide(), ['top', 'under', 'under', 'under', 'under', 'top', 'top', 'top', 'top']);
+await page.emulateMedia({ reducedMotion: 'no-preference' });
+// ?debug outlines only the floor on the screen: on the same made-up table, a wall up top and one under it.
+const outlines = await page.evaluate(async () => {
+  const { Renderer } = await import('./js/render.js');
+  const r = new Renderer(document.createElement('canvas')), walls = [{ ax: 0, ay: 50.5, bx: 100, by: 50.5 }, { ax: 0, ay: 150.5, bx: 100, by: 150.5, level: 1 }];
+  const layout = { W: 100, H: 200, walls, circles: [], sensors: [] }, game = { table: layout, floor: 0 }, seen = [];
+  r.debug = true;
+  r.setTable({ floors: [0, 1], paint() {}, draw() {} });
+  r.resize(100, 200, 1, layout);
+  for (const floor of [0, 1]) {
+    game.floor = floor; r.draw(game, floor * 1000); r.draw(game, floor * 1000 + 500);
+    seen.push([50, 150].filter(y => { const [red, green] = r.ctx.getImageData(50, y, 1, 1).data; return red + green > 200; }));
+  }
+  return seen;
+});
+assert.deepEqual(outlines, [[50], [150]], 'the outlines of the floor that is not on the screen show');
 
 // Fits a phone: nothing scrolls sideways.
 assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the page scrolls sideways on a phone');
