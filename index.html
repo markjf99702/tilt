@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tilt</title>
+  <meta name="description" content="A pinball machine you can play on your phone: flippers, pop bumpers, drop targets, a spinner and a skill shot, with the rules of an early-80s table.">
+  <meta property="og:title" content="Tilt">
+  <meta property="og:description" content="A classic pinball table, in your pocket.">
+  <meta property="og:image" content="https://tilt.junkdrawer.works/og.png">
+  <meta property="og:url" content="https://tilt.junkdrawer.works/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0b1838">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="preload" href="fonts/bungee.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/figtree.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/tilt.css">
+</head>
+<body>
+  <header class="backbox">
+    <div class="ball" id="ballNo" aria-live="off">Ball 1</div>
+    <div class="display" id="display" aria-live="polite"><span id="score">0</span></div>
+    <button type="button" class="menu" id="menuBtn" aria-label="Menu">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </button>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="table" aria-label="The pinball table"></canvas>
+    <button type="button" class="launch" id="launch" hidden aria-label="Launch: hold to pull the plunger back, let go to shoot">
+      <span class="meter" id="meter"></span><span class="lbl">Launch</span>
+    </button>
+  </main>
+
+  <section class="sheet" id="title" aria-labelledby="titleH">
+    <div class="card">
+      <h1 id="titleH">Tilt</h1>
+      <p class="lede">A classic pinball table, in your pocket.</p>
+      <button type="button" class="go" id="startBtn">Start game</button>
+      <p class="best" id="bestLine"></p>
+      <details class="how">
+        <summary>How to play</summary>
+        <ul>
+          <li><b>Flip:</b> tap and hold the left or right half of the screen. On a keyboard, Z and / (or the Shift keys, or ← →).</li>
+          <li><b>Launch:</b> hold the Launch button and let go. The longer you hold, the harder the shot. Keyboard: hold Space or ↓.</li>
+          <li><b>Nudge:</b> swipe up, or press ↑. Too many nudges and the machine tilts.</li>
+          <li><b>Skill shot:</b> launch into the flashing top lane for 25,000. The flippers move it.</li>
+          <li><b>Top lanes</b> raise the bonus multiplier and light the bumpers. <b>Standups</b> light the spinner. <b>Drop targets</b> light an extra ball at the kickout in the middle.</li>
+        </ul>
+      </details>
+      <footer class="jd-foot">
+        <a href="https://junkdrawer.works/">Part of junkdrawer.works</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://junkdrawer.works/privacy.html">Privacy</a>
+      </footer>
+    </div>
+  </section>
+
+  <section class="sheet" id="pause" hidden aria-labelledby="pauseH">
+    <div class="card">
+      <h2 id="pauseH">Paused</h2>
+      <button type="button" class="go" id="resumeBtn">Resume</button>
+      <div class="row">
+        <button type="button" class="ghost" id="soundBtn">Sound: on</button>
+        <button type="button" class="ghost" id="quitBtn">End game</button>
+      </div>
+      <footer class="jd-foot">
+        <a href="https://junkdrawer.works/">Part of junkdrawer.works</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://junkdrawer.works/privacy.html">Privacy</a>
+      </footer>
+    </div>
+  </section>
+
+  <section class="sheet" id="over" hidden aria-labelledby="overH">
+    <div class="card">
+      <h2 id="overH">Game over</h2>
+      <p class="final" id="final">0</p>
+      <p class="note" id="overNote"></p>
+      <ol class="scores" id="scores"></ol>
+      <button type="button" class="go" id="againBtn">Play again</button>
+    </div>
+  </section>
+
+  <noscript><p class="noscript">Tilt needs JavaScript to run the pinball machine.</p></noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

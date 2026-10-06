@@ -1,0 +1,14 @@
+{
+  "name": "tilt",
+  "private": true,
+  "type": "module",
+  "description": "A classic pinball table, in your pocket.",
+  "scripts": {
+    "test": "node --test test/unit.test.mjs && node test/e2e.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "upng-js": "^2.1.0"
+  }
+}
