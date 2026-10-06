@@ -1,8 +1,10 @@
 // The machine every table shares: serving each ball to the plunger, the flippers, nudging and tilt, ball save,
-// extra balls, the end of each ball and of the game, and the demo's autopilot. A table's rules extend Game:
-// they build the table (build()), score what the physics reports (a bumper kicked, a rollover was crossed)
-// and keep the lamps that the table draws. They can extend reset(), nextBall(), serve(), update() and event(),
-// always calling the version here, and fill in flipped(), release() and countBonus() below.
+// extra balls, multiball, the end of each ball and of the game, and the demo's autopilot. A table's rules extend
+// Game: they build the table (build()), score what the physics reports (a bumper kicked, a rollover was crossed)
+// and keep the lamps that the table draws. They can extend reset(), nextBall(), serve(), update(), event(),
+// drained() and lost(), always calling the version here, and fill in flipped(), release() and countBonus() below.
+// A lock holds a ball with held = { until: Infinity } and locked = true: it stays on the table but isn't in
+// play (inPlay()). launchBall() puts another ball into play.
 
 import { World, makeBall, BALL_R } from './physics.js';
 
@@ -60,6 +62,9 @@ export class Game {
     this.saveArmed = true;
     if (this.mode === 'play') this.show('Ball ' + this.ballNo, 1.2);
   }
+
+  // Balls in play: every ball on the table but any that a lock is holding.
+  inPlay() { return this.world.balls.filter(b => !b.locked).length; }
 
   ballInLane() {
     const p = this.table.plunger;
@@ -135,12 +140,13 @@ export class Game {
     // Held balls (in a saucer, say) are let go when their time is up.
     for (const b of this.world.balls) if (b.held && b.held.until <= this.time) { b.held = null; this.release(b); }
 
-    // Drained balls.
+    // Drained balls. The ball is over once the last ball in play has gone (a ball in a lock doesn't count).
     const { W, H } = this.table;
     const gone = this.world.balls.filter(b => b.y > H + 30 || b.x < -50 || b.x > W + 50 || b.y < -80 || !Number.isFinite(b.x + b.y));
     if (gone.length) {
       this.world.balls = this.world.balls.filter(b => !gone.includes(b));
-      if (!this.world.balls.length && this.state !== 'bonus' && this.state !== 'idle') this.drained();
+      if (this.inPlay()) for (const b of gone) this.lost(b);
+      else if (this.state !== 'bonus' && this.state !== 'idle') this.drained();
     }
   }
 
@@ -155,6 +161,25 @@ export class Game {
 
   // A held ball's time is up: it goes as it is unless the table kicks it out.
   release(b) { }
+
+  // ---------- multiball ----------
+  // A ball drained while others are still in play. In the ball save's time the machine plunges another at once.
+  lost(b) {
+    if (this.tilted || this.saveUntil <= this.time) return;
+    this.show('Ball saved', 1.6);
+    this.sound('saved');
+    this.launchBall();
+  }
+
+  // One more ball into play, plunged hard by the machine itself. If the shooter lane is busy it waits its turn.
+  launchBall() {
+    if (this.state !== 'live' || this.tilted) return;
+    if (this.ballInLane()) { this.after(0.5, () => this.launchBall()); return; }
+    const p = this.table.plunger;
+    this.world.balls.push(makeBall((p.x0 + p.x1) / 2, p.y - BALL_R));
+    p.pulling = false; p.pull = 1; p.firing = true; p.fireSpeed = this.settings.launchMax;
+    this.sound('plunge', { power: 1 });
+  }
 
   // ---------- end of a ball ----------
   drained() {

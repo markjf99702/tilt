@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { World, makeBall, BALL_R } from '../js/physics.js';
+import { Game } from '../js/game.js';
 import { TABLES } from '../js/tables.js';
 import { buildTable, H } from '../js/tables/classic/layout.js';
 import { Classic, SCORES } from '../js/tables/classic/rules.js';
@@ -28,24 +29,26 @@ for (const table of Object.values(TABLES)) {
     assert.ok(b.x > t.plunger.x0 && Math.abs(b.y - (t.plunger.y - BALL_R)) < 2, `ball at ${b.x}, ${b.y}`);
   });
 
-  test(`${table.name}: the ball never leaves the table or sticks during a long demo`, () => {
+  test(`${table.name}: no ball ever leaves the table or sticks during a long demo`, () => {
     seed(3);
     const g = new table.Game({ ...NORMAL });
     g.start('attract');
-    let still = 0, worst = 0, last = null;
+    const still = new Map(), last = new Map(); // each ball's seconds sitting still, and where it was last frame
+    let worst = 0;
     for (let f = 0; f < 60 * 60 * 5; f++) {
       for (let i = 0; i < 17; i++) g.world.step();
       g.autopilot(); g.update(1 / 60);
-      const b = g.world.balls[0];
-      if (!b) continue;
-      assert.ok(b.x > -1 && b.x < g.table.W + 1 && b.y > -1, `escaped at ${b.x}, ${b.y}`);
-      if (g.state === 'live' && !b.held) {
-        still = last && Math.hypot(b.x - last.x, b.y - last.y) < 0.3 ? still + 1 / 60 : 0;
-        worst = Math.max(worst, still);
+      for (const b of g.world.balls) {
+        assert.ok(b.x > -1 && b.x < g.table.W + 1 && b.y > -1, `escaped at ${b.x}, ${b.y}`);
+        if (g.state === 'live' && !b.held) {
+          const l = last.get(b), s = l && Math.hypot(b.x - l.x, b.y - l.y) < 0.3 ? (still.get(b) || 0) + 1 / 60 : 0;
+          still.set(b, s);
+          worst = Math.max(worst, s);
+        }
+        last.set(b, { x: b.x, y: b.y });
       }
-      last = { x: b.x, y: b.y };
     }
-    assert.ok(worst < 3, `ball sat still for ${worst.toFixed(1)}s`);
+    assert.ok(worst < 3, `a ball sat still for ${worst.toFixed(1)}s`);
   });
 
   test(`${table.name}: a ball nobody flips always drains: no bounce loops and nowhere to sit`, () => {
@@ -105,6 +108,7 @@ function testTable() {
   const ramps = [{ level: 1, path: [[125, 400, 0], [125, 100, 60]], drag: 400 }];
   return { W: 300, H: 680, walls, circles: [], sensors, flippers: [], plunger, ramps };
 }
+class TestGame extends Game { build() { return testTable(); } }
 
 test('a ramp carries a ball over a wall on the playfield, and lets it back down', () => {
   // On the playfield, the wall stops it.
@@ -139,6 +143,38 @@ test('balls on different levels pass through each other', () => {
   b.level = 1; w.balls.push(a, b);
   w.step();
   assert.ok(Math.abs(a.x - 125) < 0.01 && Math.abs(b.x - 130) < 0.01, 'they pushed each other apart');
+});
+
+test('a locked ball is not in play: the ball ends when the last one in play drains', () => {
+  const g = new TestGame({ ...NORMAL, ballSave: 0 });
+  g.start('play');
+  const locked = g.world.balls[0];
+  locked.x = 50; locked.y = 50; locked.held = { until: Infinity }; locked.locked = true;
+  g.world.balls.push(makeBall(125, 720)); // already past the bottom of the table
+  g.state = 'live';
+  g.update(1 / 60);
+  assert.equal(g.state, 'bonus');
+  assert.ok(g.world.balls.includes(locked), 'the locked ball stays');
+});
+
+test('in multiball a ball lost in the ball save comes straight back, and after it the other plays on', () => {
+  const g = new TestGame({ ...NORMAL });
+  g.start('play');
+  const a = g.world.balls[0];
+  a.x = 60; a.y = 500;
+  g.world.balls.push(makeBall(200, 720));
+  g.state = 'live'; g.saveUntil = g.time + g.wsecs(10);
+  g.update(1 / 60);
+  assert.equal(g.inPlay(), 2, 'another ball is plunged');
+  assert.ok(g.table.plunger.firing);
+  for (let i = 0; i < 400; i++) g.world.step();
+  const c = g.world.balls.find(b => b !== a);
+  assert.ok(c.y < 200, `the new ball only got up to y ${c.y.toFixed(0)}`);
+  // Out of the ball save, losing one leaves the other in play.
+  g.saveUntil = 0; c.y = 720;
+  g.update(1 / 60);
+  assert.equal(g.inPlay(), 1);
+  assert.equal(g.state, 'live');
 });
 
 // Classic's own tests.

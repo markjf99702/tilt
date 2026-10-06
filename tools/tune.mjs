@@ -2,8 +2,9 @@
 // so a change to a table or the physics can be judged by numbers as well as by feel.
 //   node tools/tune.mjs [games=60] [table=classic]
 // The autopilot flips whenever the ball comes down to a flipper, a little late at random, like a fair player.
-// Drains are told apart by the table's 'outlane' and 'inlane' rollovers (side 1 is the left). It follows one
-// ball at a time: in multiball it would count each ball lost as a drain.
+// Drains are told apart by the table's 'outlane' and 'inlane' rollovers (side 1 is the left). It follows every
+// ball: in multiball each ball lost counts as a drain, and the ball's time runs until the last ball in play has
+// gone. A table can add its own counts (checks.stats(game)), printed per game.
 import { TABLES } from '../js/tables.js';
 import { NORMAL } from '../js/settings.js';
 
@@ -22,6 +23,7 @@ let timeouts = 0; // balls still alive after two minutes: taken off the table an
                   // never tires, so these are mostly long rallies; the unit tests check that an unflipped ball always drains.
 const speeds = [], ballTimes = [];
 let liveSecs = 0, score = 0, sideWallSecs = 0;
+const extra = {}; // the table's own counts, summed over the games
 
 for (let gi = 0; gi < GAMES; gi++) {
   seed(1000 + gi);
@@ -29,38 +31,44 @@ for (let gi = 0; gi < GAMES; gi++) {
   const g = new table.Game({ ...NORMAL, ballSave: 0 }, { over: () => { over = true; } });
   g.start('play');
   const scale = g.settings.timeScale ?? 1;
-  let lastOutlane = null, ballStart = null;
+  const lastOutlane = new Map(); // ball -> the outlane it last rolled through
+  let ballStart = null;
   for (let f = 0; f < 60 * 60 * 20 && !over; f++) {
     const steps = Math.round(17 * scale);
     for (let i = 0; i < steps; i++) g.world.step();
     for (const e of g.world.events) {
-      if (e.type === 'enter' && e.obj.id === 'outlane') lastOutlane = e.obj.side === 1 ? 'leftOutlane' : 'rightOutlane';
-      if (e.type === 'enter' && e.obj.id === 'inlane') lastOutlane = null;
-      if (e.type === 'kick' || (e.type === 'hit' && e.obj.kind !== 'rail')) { if (e.ball.y < table.checks.outlaneTop) lastOutlane = null; }
+      if (e.type === 'enter' && e.obj.id === 'outlane') lastOutlane.set(e.ball, e.obj.side === 1 ? 'leftOutlane' : 'rightOutlane');
+      if (e.type === 'enter' && e.obj.id === 'inlane') lastOutlane.delete(e.ball);
+      if (e.type === 'kick' || (e.type === 'hit' && e.obj.kind !== 'rail')) { if (e.ball.y < table.checks.outlaneTop) lastOutlane.delete(e.ball); }
     }
     if (ballStart != null && g.state === 'live' && g.time - ballStart > 120 * scale) {
       timeouts++;
-      g.world.balls.length = 0; g.drained(); ballStart = null; lastOutlane = null;
+      g.world.balls = g.world.balls.filter(b => b.locked); g.drained(); ballStart = null; lastOutlane.clear();
       continue;
     }
-    const before = g.world.balls.length, wasLive = g.state === 'live';
+    const before = g.world.balls.filter(b => !b.locked), wasLive = g.state === 'live';
     g.autopilot();
     g.update(FRAME);
-    const b = g.world.balls[0];
-    if (wasLive && g.world.balls.length < before) {
-      drains[lastOutlane || 'center']++;
-      if (ballStart != null) ballTimes.push((g.time - ballStart) / scale);
-      lastOutlane = null; ballStart = null;
+    if (wasLive) {
+      for (const b of before) if (!g.world.balls.includes(b)) { drains[lastOutlane.get(b) || 'center']++; lastOutlane.delete(b); }
+      if (before.length && !g.world.balls.some(b => !b.locked)) {
+        if (ballStart != null) ballTimes.push((g.time - ballStart) / scale);
+        ballStart = null;
+      }
     }
     if (g.state === 'live' && ballStart == null) ballStart = g.time;
-    if (b && g.state === 'live' && !b.held) {
+    const moving = g.world.balls.filter(b => !b.held);
+    if (moving.length && g.state === 'live') {
       liveSecs += FRAME;
-      // Speed as the player sees it: table millimetres per second of real time.
-      speeds.push(Math.hypot(b.vx, b.vy) * scale);
-      if (table.checks.sideWall(b)) sideWallSecs += FRAME;
+      for (const b of moving) {
+        // Speed as the player sees it: table millimetres per second of real time.
+        speeds.push(Math.hypot(b.vx, b.vy) * scale);
+        if (table.checks.sideWall(b)) sideWallSecs += FRAME / moving.length;
+      }
     }
   }
   score += g.score;
+  for (const [k, v] of Object.entries(table.checks.stats?.(g) ?? {})) extra[k] = (extra[k] || 0) + v;
 }
 
 speeds.sort((a, b) => a - b);
@@ -79,5 +87,6 @@ const result = {
   speedMedian: q(0.5), speedP75: q(0.75), speedP90: q(0.9),
   sideWallShare: +(sideWallSecs / liveSecs).toFixed(3),
   meanScore: Math.round(score / GAMES),
+  ...Object.fromEntries(Object.entries(extra).map(([k, v]) => [k + 'PerGame', +(v / GAMES).toFixed(2)])),
 };
 console.log(JSON.stringify(result, null, 1));

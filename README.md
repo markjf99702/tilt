@@ -41,7 +41,7 @@ To put it online with GitHub Pages: **Settings → Pages → Build and deploymen
 ### Files
 
 - `js/physics.js`: the ball (and its spin), walls, bumpers, flippers and ramps, in fixed thousandth-of-a-second steps. A ramp is a level of its own above the playfield: a ball up there only meets the ramp's walls.
-- `js/game.js`: the machine every table shares: serving balls, the flippers, ball save, tilt, extra balls, the end of a ball and of the game, and the demo's autopilot.
+- `js/game.js`: the machine every table shares: serving balls, the flippers, ball save, tilt, extra balls, locks and multiball, the end of a ball and of the game, and the demo's autopilot.
 - `js/tables.js`: the list of tables. Each table is a folder in `js/tables/` with its own layout, rules, drawing and skins.
 - `js/tables/classic/`: the Classic table: `layout.js` (where everything is, in millimetres), `rules.js` (what everything scores, its lamps and bonus), `draw.js` (its playfield, lamps and toys) and `skins.js` (colours, names and artwork). `index.js` puts them together, with its rules for How to play.
 - `js/settings.js`: the machine's adjustments (slope, game speed, flipper strength, ball save, tilt warnings), which difficulty levels will build on.
