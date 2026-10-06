@@ -18,7 +18,7 @@ export default {
   howTo: [
     '<b>Ramp:</b> shoot it with the left flipper. It lights the lock and brings the ball back to the left flipper for another go.',
     '<b>Lock:</b> the right side works the upper flipper too. Shoot the orbit with the right flipper and keep holding: the ball comes round onto the upper flipper. From there, shoot the dock under the ramp to lock it, then light the lock again for two-ball <b>multiball</b>. The ramp scores the <b>jackpot</b>, and the dock lights it again.',
-    '<b>Skill shot:</b> launch softly onto the upper flipper and shoot the dock for 25,000. <b>Top lanes</b> raise the bonus multiplier, and each ramp lights a planet: all eight light an <b>extra ball</b> at the orbit.',
+    '<b>Skill shot:</b> launch softly onto the upper flipper and shoot the dock for 25,000. <b>Top lanes</b> raise the bonus multiplier, and each ramp lights a planet: all eight on one ball light an <b>extra ball</b> at the orbit.',
   ],
   checks: {
     area: { x: 20, y: 150, w: 446, h: 700 },

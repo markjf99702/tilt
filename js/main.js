@@ -89,7 +89,7 @@ function useTable(id) {
 
 // The table a link names, else the one played last, else the first.
 const asked = new URLSearchParams(location.search).get('table');
-useTable([asked, store.table].find(id => id && Object.hasOwn(TABLES, id)) || FIRST);
+useTable([asked, store.table].find(id => id && Object.keys(TABLES).includes(id)) || FIRST);
 
 // ---------- controls: touch ----------
 const stage = $('stage');

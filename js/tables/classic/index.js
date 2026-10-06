@@ -8,7 +8,7 @@ import { SKINS } from './skins.js';
 
 export default {
   name: 'Classic',
-  blurb: 'Late-70s: drop targets, a spinner and a kickout.', // under its name in the table picker
+  blurb: 'Early-80s: drop targets, a spinner and a kickout.', // under its name in the table picker
   // A fresh layout (the same one its rules build): its size in millimetres (W and H, which the renderer fits to
   // the screen), walls, posts, sensors, flippers (each with a side), plunger, and a 'laneExit' line across the
   // top of the shooter lane: past it, the ball is in play.

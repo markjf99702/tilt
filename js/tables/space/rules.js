@@ -35,12 +35,12 @@ export class Space extends Game {
     this.flasher = 0;
   }
 
-  // Each ball starts with no bonus and the lanes out. A locked ball, a lit lock, the planets and the jackpot's
+  // Each ball starts with no bonus, and the lanes and planets out. A locked ball, a lit lock and the jackpot's
   // value carry over.
   nextBall() {
     const l = this.lamps;
     this.counts = { ramps: 0, orbits: 0 };
-    l.mult = 1; l.lanes = [false, false, false];
+    l.mult = 1; l.lanes = [false, false, false]; l.planets = 0;
     super.nextBall();
   }
 
@@ -157,7 +157,7 @@ export class Space extends Game {
         this.show('Planets 50,000', 1.6);
       }
       this.sound('award');
-      this.after(1, () => { l.planets -= PLANETS; });
+      this.after(1, () => { l.planets = Math.max(0, l.planets - PLANETS); }); // the ball may have ended meanwhile
     }
     if (l.multiball && l.jackpotLit) {
       l.jackpotLit = false;
