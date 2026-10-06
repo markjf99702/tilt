@@ -146,8 +146,9 @@ export class Space extends Game {
         this.sound('award');
       }
     }
-    // All eight planets light an extra ball at the orbit, once a game; after that they're worth 50,000.
-    if (l.planets < PLANETS && ++l.planets === PLANETS) {
+    // All eight planets light an extra ball at the orbit, once a game; after that they're worth 50,000. They go
+    // out a moment later, and a ramp made in that moment lights the first of the next eight.
+    if (++l.planets === PLANETS) {
       if (!l.extraBallLit && !this.extraBallUsed) {
         l.extraBallLit = true;
         this.show('Extra ball is lit', 2);
@@ -156,7 +157,7 @@ export class Space extends Game {
         this.show('Planets 50,000', 1.6);
       }
       this.sound('award');
-      this.after(1, () => { l.planets = 0; });
+      this.after(1, () => { l.planets -= PLANETS; });
     }
     if (l.multiball && l.jackpotLit) {
       l.jackpotLit = false;

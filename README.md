@@ -31,7 +31,7 @@
 ### Space
 
 - **The ramp** is a shot for the left flipper. It climbs over the playfield, turns round a hairpin and comes back down a wire to the left flipper, for 10,000. It lights the lock and raises the jackpot.
-- **The upper flipper** works with the right one. Catch the ball on it and shoot the dock under the ramp: with the lock lit the ball is locked there and another is served. Light the lock again and shoot the dock for two-ball **multiball**.
+- **The upper flipper** works with the right one. Shoot the orbit with the right flipper and keep holding the button: the ball comes round onto the upper flipper. From there, shoot the dock under the ramp: with the lock lit the ball is locked there and another is served. Light the lock again and shoot the dock for two-ball **multiball**.
 - **In multiball** the ramp scores the jackpot and the dock lights it again. The jackpot starts at 100,000 and each ramp made outside multiball adds 10,000, up to 250,000. Multiball starts with ten seconds of ball save.
 - **Skill shot.** Launch softly onto the upper flipper and shoot the dock for 25,000.
 - **Top lanes** U, F and O raise the bonus multiplier (up to 5×). The flippers move the lit lanes.

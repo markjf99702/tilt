@@ -147,8 +147,9 @@ document.addEventListener('keydown', e => {
   unlock();
   if (e.code === 'Escape' || e.code === 'KeyP') { if (game.mode === 'play') setPaused(!paused); return; }
   if (game.mode !== 'play' || paused) {
-    // Enter or Space starts a game from the title card, but not while opening How to play or picking a table.
-    const busy = document.activeElement?.tagName === 'SUMMARY' || document.activeElement?.closest('.tables');
+    // Enter or Space starts a game from the title card, but not while opening How to play or picking a table
+    // (Space picks one; Enter does nothing there, so it still starts).
+    const busy = document.activeElement?.tagName === 'SUMMARY' || (e.code === 'Space' && document.activeElement?.closest('.tables'));
     if ((e.code === 'Enter' || e.code === 'Space') && !e.repeat && !$('title').hidden && !busy) { e.preventDefault(); startGame(); }
     return;
   }

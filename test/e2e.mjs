@@ -118,7 +118,8 @@ assert.equal(await page.evaluate(() => window.tilt.game.table.flippers.length), 
 assert.match(await page.textContent('#howTo'), /the dock under the ramp/);
 assert.equal(new URL(page.url()).searchParams.get('table'), 'space');
 assert.equal(await page.evaluate(() => window.tilt.store.table), 'space');
-await page.tap('#startBtn');
+// Enter starts it, though the tap left the picker holding the focus.
+await page.keyboard.press('Enter');
 await page.waitForSelector('#launch:not([hidden])');
 await touch('touchStart', [{ x: lb.x + lb.width / 2, y: lb.y + lb.height / 2, id: 1 }]);
 await page.waitForTimeout(600);

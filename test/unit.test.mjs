@@ -665,6 +665,13 @@ test('Space: eight ramps light the extra ball, and the orbit collects it', () =>
   assert.equal(g.extraBalls, 1);
 });
 
+test('Space: a ramp made as the eight planets go out lights the first of the next eight', () => {
+  const g = spaceGame(), b = g.world.balls[0];
+  for (let i = 0; i < 9; i++) rampShot(g, b);
+  playOn(g, 1.5);
+  assert.equal(g.lamps.planets, 1);
+});
+
 test('Space: the bonus counts the ramps and orbits of the ball, times the multiplier', () => {
   const g = spaceGame({ ballSave: 0 }), b = g.world.balls[0];
   g.counts = { ramps: 3, orbits: 2 }; g.lamps.mult = 3;
