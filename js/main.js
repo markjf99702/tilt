@@ -199,7 +199,8 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (!paused) {
-    acc += dt;
+    // The ball's world runs timeScale times as fast as the clock (a touch of slow motion, see settings.js).
+    acc += dt * (game.settings.timeScale ?? 1);
     while (acc >= STEP) { game.world.step(); acc -= STEP; }
     if (game.mode === 'attract' || game.mode === 'over') game.autopilot();
     game.update(dt);

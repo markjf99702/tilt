@@ -2,7 +2,7 @@
 
 **Play it: [tilt.junkdrawer.works](https://tilt.junkdrawer.works/)**
 
-**A classic pinball table you can play on your phone.** It's laid out and scored like an early-80s solid-state machine: three top lanes, three pop bumpers, a kickout, a spinner orbit, standup targets and a bank of drop targets. The ball runs on real-ish physics, measured in millimetres on a table the size of a real playfield.
+**A classic pinball table you can play on your phone.** It's laid out and scored like an early-80s solid-state machine: three top lanes, three pop bumpers, a kickout, a spinner orbit, standup targets and a bank of drop targets. The ball runs on real-ish physics, measured in millimetres on a table the size of a real playfield: it rolls, skids when it's kicked, and plays at three-quarter speed so it's easy to follow on a phone (the flippers stay full speed).
 
 <p align="center">
   <img src="docs/phone-title.png" alt="The title card over the Classic table, with a Start game button and the best score" width="250">
@@ -40,11 +40,11 @@ To put it online with GitHub Pages: **Settings → Pages → Build and deploymen
 
 ### Files
 
-- `js/physics.js`: the ball, walls, bumpers and flippers, in fixed thousandth-of-a-second steps.
+- `js/physics.js`: the ball (and its spin), walls, bumpers and flippers, in fixed thousandth-of-a-second steps.
 - `js/table.js`: the table layout, in millimetres. Every skin uses this same geometry.
 - `js/game.js`: the rules: scoring, bonus, ball save, tilt, extra balls, and the demo's autopilot.
 - `js/skins.js`: colours, names and artwork for each skin (Classic so far).
-- `js/settings.js`: the machine's adjustments (slope, flipper strength, ball save, tilt warnings), which difficulty levels will build on.
+- `js/settings.js`: the machine's adjustments (slope, game speed, flipper strength, ball save, tilt warnings), which difficulty levels will build on.
 - `js/render.js`: draws the table on a canvas; `js/sound.js`: every sound, made in the browser with Web Audio.
 - `js/main.js`: the page: controls, menus, high scores and the clock.
 - `fonts/`: Bungee and Figtree (SIL Open Font License), served from here so nothing loads from elsewhere.

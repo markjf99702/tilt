@@ -34,7 +34,8 @@ test('a soft plunge falls back onto the plunger', () => {
 
 test('a medium plunge can drop into a top lane', () => {
   const lanes = new Set();
-  for (let v = 1300; v <= 1700; v += 25) {
+  // (The ball skids up the shooter lane, so these are 200 mm/s above the old range, like launchMin/launchMax.)
+  for (let v = 1500; v <= 1900; v += 25) {
     const t = buildTable(), w = new World(t, NORMAL);
     w.balls.push(makeBall(503, t.plunger.y - BALL_R));
     t.plunger.firing = true; t.plunger.fireSpeed = v;
@@ -52,9 +53,10 @@ test('a cradled ball rests on the raised flipper, and a ball rolling down a flip
     run(w, 1500);
     const x0 = b.x; run(w, 300);
     assert.ok(Math.abs(b.x - x0) < 0.5, 'the ball settles');
-    // Let it go and catch it at different moments as it rolls down the flipper.
+    // Let it go and catch it at different moments as it rolls down the flipper. (A rolling ball speeds up at
+    // 5/7 of g sin(slope), so it takes about 600 ms, not 300, to roll from the cradle to the tip.)
     let best = H;
-    for (let wait = 60; wait <= 300; wait += 20) {
+    for (let wait = 60; wait <= 600; wait += 20) {
       const t2 = buildTable(), w2 = new World(t2, NORMAL), f2 = t2.flippers[side];
       f2.pressed = true; f2.angle = f2.up;
       const b2 = makeBall(side ? 286 : 200, 860); w2.balls.push(b2);

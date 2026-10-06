@@ -44,10 +44,13 @@ export class Game {
     this.bumperFlash = [0, 0, 0];
   }
 
+  // The clock of the ball's world. It runs timeScale times as fast as real time; the rules' own waits
+  // (ball save, the saucer, the bonus count, the demo's fingers) are given in real seconds and go through wsecs().
   get time() { return this.world.time; }
+  wsecs(secs) { return secs * (this.settings.timeScale ?? 1); }
   sound(name, o) { this.out.sound?.(name, o); }
   show(text, secs = 1.6) { this.out.show?.(text, secs); }
-  after(secs, fn) { this.timers.push({ at: this.time + secs, fn }); }
+  after(secs, fn) { this.timers.push({ at: this.time + this.wsecs(secs), fn }); }
 
   start(mode = 'play') {
     this.reset();
@@ -229,10 +232,10 @@ export class Game {
     if (e.type === 'cross') {
       if (o.id === 'laneExit' && e.dir < 0 && this.state === 'lane') {
         this.state = 'live';
-        if (this.saveArmed) { this.saveUntil = this.time + this.settings.ballSave; this.saveArmed = false; }
+        if (this.saveArmed) { this.saveUntil = this.time + this.wsecs(this.settings.ballSave); this.saveArmed = false; }
       } else if (o.id === 'spinner') {
         const spins = Math.max(1, Math.round(e.speed / 160));
-        this.spin.rate = Math.min(80, e.speed / 18);
+        this.spin.rate = Math.min(80, e.speed * (this.settings.timeScale ?? 1) / 18); // per real second
         this.sound('spinner', { spins });
         if (live) for (let i = 0; i < spins; i++) this.add(l.spinnerLit ? SCORES.spinnerLit : SCORES.spinner);
         this.skillOn = false;
@@ -262,8 +265,8 @@ export class Game {
       } else if (o.id === 'saucer') {
         const b = e.ball;
         if (e.speed > this.settings.saucerGrab || b.held) return;
-        b.held = { until: this.time + 1.1 };
-        b.x = this.table.saucer.x; b.y = this.table.saucer.y; b.vx = 0; b.vy = 0;
+        b.held = { until: this.time + this.wsecs(1.1) };
+        b.x = this.table.saucer.x; b.y = this.table.saucer.y; b.vx = 0; b.vy = 0; b.wx = 0; b.wy = 0;
         this.sound('saucer');
         this.skillOn = false;
         if (!live) return;

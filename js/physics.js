@@ -10,9 +10,30 @@
 export const BALL_R = 13.5;
 export const STEP = 1 / 1000;
 const MAX_SPEED = 7000;
+const GRIP = 0.15;      // sliding friction between the ball and the playfield (steel on a waxed playfield)
+const WALL_GRIP = 0.5;  // and between the ball and the walls, rubbers and flippers it rubs against
 
+// The ball rolls. Besides its velocity (vx, vy) it keeps its spin, as the speed it would roll at (wx, wy).
+// Rolling, the two match. A kick, a flip or a bounce changes the velocity but not the spin, so the ball
+// skids, and friction with the playfield pulls the two together again: a solid sphere ends up rolling at 5/7
+// of its skid speed plus 2/7 of its spin's. That's where a real ball's pace goes: a kicked ball skids off a
+// good quarter of its speed, and a rolling ball only speeds up down the slope at 5/7 of g sin(slope).
 export function makeBall(x, y) {
-  return { x, y, vx: 0, vy: 0, held: null, inside: new Set(), id: Math.random().toString(36).slice(2, 8), lastHit: 0 };
+  return { x, y, vx: 0, vy: 0, wx: 0, wy: 0, held: null, inside: new Set(), id: Math.random().toString(36).slice(2, 8), lastHit: 0 };
+}
+
+// Skid friction: moves velocity and spin towards each other by up to f (mm/s) this step.
+function roll(b, f) {
+  const sx = b.vx - b.wx, sy = b.vy - b.wy, s = Math.hypot(sx, sy);
+  if (s <= f * 3.5) {
+    // Rolling (or about to be): both become the rolling speed.
+    b.vx = b.wx = (5 * b.vx + 2 * b.wx) / 7;
+    b.vy = b.wy = (5 * b.vy + 2 * b.wy) / 7;
+    return;
+  }
+  const k = f / s;
+  b.vx -= sx * k; b.vy -= sy * k;
+  b.wx += 2.5 * sx * k; b.wy += 2.5 * sy * k; // I = 2/5 m r², so the spin changes 5/2 times as fast
 }
 
 export class World {
@@ -22,7 +43,12 @@ export class World {
     this.balls = [];
     this.events = [];
     this.time = 0;
-    this.gy = 9810 * Math.sin(settings.slope * Math.PI / 180);
+    const a = settings.slope * Math.PI / 180;
+    this.gy = 9810 * Math.sin(a);
+    this.skid = GRIP * 9810 * Math.cos(a) * STEP; // how much a skidding ball's speed and spin close up per step
+    // The ball's world can run a little slower than the clock on the wall (see settings.timeScale). The
+    // player's side of the machine doesn't: flipper speeds and the plunger pull are in real seconds.
+    this.scale = settings.timeScale ?? 1;
     this.cool = new Map(); // kicker -> time it can fire again
   }
 
@@ -31,11 +57,12 @@ export class World {
   step() {
     const dt = STEP;
     this.time += dt;
-    for (const f of this.t.flippers) moveFlipper(f, dt, this.s);
-    if (this.t.plunger) movePlunger(this.t.plunger, dt);
+    for (const f of this.t.flippers) moveFlipper(f, dt, this.s, this.scale);
+    if (this.t.plunger) movePlunger(this.t.plunger, dt, this.scale);
     for (const b of this.balls) {
       if (b.held) continue;
       b.vy += this.gy * dt;
+      roll(b, this.skid);
       const sp = Math.hypot(b.vx, b.vy);
       if (sp > MAX_SPEED) { b.vx *= MAX_SPEED / sp; b.vy *= MAX_SPEED / sp; }
       const px = b.x, py = b.y;
@@ -135,6 +162,13 @@ function bounce(b, nx, ny, sx, sy, e, mu) {
     tx *= k; ty *= k;
   }
   b.vx = tx - ee * vn * nx + sx; b.vy = ty - ee * vn * ny + sy;
+  // The wall rubs against the spinning ball too (the contact point slides up or down the wall), which takes
+  // out the spin that was carrying it into the wall, so the ball doesn't just roll straight back into it.
+  const wn = b.wx * nx + b.wy * ny;
+  if (wn) {
+    const cut = Math.min(Math.abs(wn), 2.5 * WALL_GRIP * (1 + ee) * -vn) * Math.sign(wn);
+    b.wx -= cut * nx; b.wy -= cut * ny;
+  }
   return -vn;
 }
 
@@ -159,14 +193,15 @@ export function closestOnSeg(px, py, ax, ay, bx, by) {
 
 // ---------- flippers ----------
 // A flipper swings between its rest angle and its up angle. Held, it accelerates to full speed in a few
-// milliseconds, like a solenoid; let go, a spring brings it back more slowly.
-function moveFlipper(f, dt, s) {
+// milliseconds, like a solenoid; let go, a spring brings it back more slowly. Its speeds are real-time ones,
+// so when the ball's world runs slower than the clock the flipper still snaps up as fast as it did.
+function moveFlipper(f, dt, s, scale = 1) {
   const target = f.pressed ? f.up : f.rest;
   const dir = Math.sign(target - f.angle);
   if (!dir) { f.omega = 0; return; }
-  const top = f.pressed ? s.flipUp : s.flipDown;
+  const top = (f.pressed ? s.flipUp : s.flipDown) / scale;
   const want = dir * top;
-  const acc = top / 0.005;
+  const acc = top / (0.005 * scale);
   f.omega += Math.max(-acc * dt, Math.min(acc * dt, want - f.omega));
   if (Math.sign(f.omega) !== dir) f.omega = dir * acc * dt;
   f.angle += f.omega * dt;
@@ -197,15 +232,17 @@ function flipperContact(b, f, world) {
 // ---------- plunger ----------
 // The ball sits on the plunger's tip. Pulled back, the tip (and the ball) go down with it; let go, it
 // springs up and hands the ball its speed.
-function movePlunger(p, dt) {
+// The pull is the player's hand, so it takes pullTime real seconds however fast the ball's world runs.
+function movePlunger(p, dt, scale = 1) {
   p.vel = 0;
   if (p.firing) {
     p.vel = -p.fireSpeed;
     p.pull -= p.fireSpeed * dt / p.travel;
     if (p.pull <= 0) { p.pull = 0; p.firing = false; }
   } else if (p.pulling) {
-    p.pull = Math.min(1, p.pull + dt / p.pullTime);
-    p.vel = p.travel / p.pullTime;
+    const t = p.pullTime * scale;
+    p.pull = Math.min(1, p.pull + dt / t);
+    p.vel = p.travel / t;
   }
 }
 

@@ -37,7 +37,8 @@ export function buildTable() {
     const r = a * Math.PI / 180;
     arch.push([ARC_C.x + Math.cos(r) * ARC_R, ARC_C.y - Math.sin(r) * ARC_R]);
   }
-  chain(arch, { e: 0.3, mu: 0.02, kind: 'rail' });
+  // The ball rides the arch pressed against it, so friction there takes real speed off orbit shots.
+  chain(arch, { e: 0.3, mu: 0.1, kind: 'rail' });
   seg(W, 260, W, H + 40, { e: 0.3, kind: 'rail' });          // right outer wall
   seg(0, 260, 0, H + 40, { e: 0.3, kind: 'rail' });          // left outer wall
 
@@ -58,7 +59,7 @@ export function buildTable() {
 
   // ---- pop bumpers ----
   const bumpers = [[188, 250], [302, 250], [245, 338]].map(([x, y], i) =>
-    post(x, y, 24, { e: 0.5, kind: 'bumper', i, kick: { speed: 1700, min: 0 } }));
+    post(x, y, 24, { e: 0.5, kind: 'bumper', i, kick: { speed: 1100, min: 0 } }));
 
   // ---- the saucer ----
   const saucer = spot(MID, 480, 15, { id: 'saucer', x: MID, y: 480 });
@@ -83,7 +84,7 @@ export function buildTable() {
     const X = x => (side === 1 ? x : mx(x));
     // Slingshot: its long face kicks; the other two sides are plain rubber.
     const [T, L, R] = SLING;
-    slings.push(seg(X(T[0]), T[1], X(R[0]), R[1], { r: 6, e: 0.6, kind: 'sling', side, kick: { speed: 1350, min: 260 } }));
+    slings.push(seg(X(T[0]), T[1], X(R[0]), R[1], { r: 6, e: 0.6, kind: 'sling', side, kick: { speed: 1000, min: 260 } }));
     seg(X(T[0]), T[1], X(L[0]), L[1], { r: 4, e: 0.5, kind: 'rubber' });
     seg(X(L[0]), L[1], X(R[0]), R[1], { r: 4, e: 0.4, kind: 'rubber' });
     // Divider between inlane and outlane, ending at the flipper.
@@ -96,8 +97,8 @@ export function buildTable() {
   // ---- flippers ----
   const DEG = Math.PI / 180;
   const flippers = [
-    { side: 'left', x: 150, y: 925, len: 80, r0: 11, r1: 6, rest: 30 * DEG, up: -28 * DEG, e: 0.55 },
-    { side: 'right', x: mx(150), y: 925, len: 80, r0: 11, r1: 6, rest: 150 * DEG, up: 208 * DEG, e: 0.55 },
+    { side: 'left', x: 150, y: 925, len: 80, r0: 11, r1: 6, rest: 30 * DEG, up: -28 * DEG, e: 0.4 },
+    { side: 'right', x: mx(150), y: 925, len: 80, r0: 11, r1: 6, rest: 150 * DEG, up: 208 * DEG, e: 0.4 },
   ].map(f => ({ ...f, angle: f.rest, omega: 0, pressed: false }));
 
   // ---- drain ----
