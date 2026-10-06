@@ -141,7 +141,8 @@ export class Space extends Game {
       this.jackpot = Math.min(SCORES.jackpotMax, this.jackpot + SCORES.jackpotStep);
       if (!l.lockLit) {
         l.lockLit = true;
-        this.show('Lock is lit', 1.6);
+        // With a ball already locked, the dock now starts multiball.
+        this.show(this.world.balls.some(b => b.locked) ? 'Multiball is lit' : 'Lock is lit', 1.6);
         this.sound('award');
       }
     }
@@ -232,7 +233,7 @@ export class Space extends Game {
       this.saveUntil = Math.max(this.saveUntil, this.time + this.wsecs(this.settings.multiballSave));
       this.stats.multiballs++;
       this.show('Multiball', 2);
-      this.after(2, () => { if (l.jackpotLit) this.show('Jackpot ' + fmt(this.jackpot), 1.6); });
+      this.after(2, () => { if (l.jackpotLit) this.show('Ramp for ' + fmt(this.jackpot), 1.6); });
       this.sound('multiball');
     } else this.add(SCORES.dock);
   }

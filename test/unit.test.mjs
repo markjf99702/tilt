@@ -527,11 +527,13 @@ function startMultiball(g) {
 const playOn = (g, secs) => { for (let f = 0; f < secs * 60; f++) { for (let i = 0; i < 13; i++) g.world.step(); g.update(1 / 60); } };
 
 test('Space: a ramp lights the lock, the dock locks the ball and serves another, and a second lock starts multiball', () => {
-  const g = spaceGame(), l = g.lamps, first = g.world.balls[0];
+  const g = spaceGame(), l = g.lamps, first = g.world.balls[0], shown = [];
+  g.out.show = text => shown.push(text);
   g.lamps.skill = false;
   const before = g.score;
   rampShot(g, first);
   assert.ok(l.lockLit, 'the lock is lit');
+  assert.equal(shown.at(-1), 'Lock is lit');
   assert.equal(g.score - before, SPACE.ramp);
   intoDock(g, first);
   assert.ok(first.locked && first.held.until === Infinity, 'the ball is locked');
@@ -540,7 +542,9 @@ test('Space: a ramp lights the lock, the dock locks the ball and serves another,
   assert.equal(g.inPlay(), 1);
   const second = g.world.balls.find(b => b !== first);
   g.state = 'live';
-  rampShot(g, second); intoDock(g, second);
+  rampShot(g, second);
+  assert.equal(shown.at(-1), 'Multiball is lit', 'with a ball locked, the next lock starts multiball');
+  intoDock(g, second);
   assert.ok(l.multiball && l.jackpotLit, 'multiball, with the jackpot lit');
   assert.ok(!first.locked && first.level === 1, 'the locked ball goes up onto the ramp');
   assert.equal(g.inPlay(), 2);

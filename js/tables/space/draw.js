@@ -108,7 +108,16 @@ function labels(c, s) {
   c.font = `11px ${s.font}`;
   c.textAlign = 'center'; c.textBaseline = 'middle';
   c.fillStyle = s.ink;
-  c.fillText('SHOOT AGAIN', MID, 902);
+  words(c, 'SHOOT AGAIN', MID, 902);
+  c.restore();
+}
+
+// Bungee's space all but disappears at these small sizes, so the words are set one at a time with a clear gap.
+function words(c, text, x, y) {
+  const ws = text.split(' '), widths = ws.map(w => c.measureText(w).width), gap = 5;
+  let at = x - (widths.reduce((a, b) => a + b) + gap * (ws.length - 1)) / 2;
+  c.save(); c.textAlign = 'left';
+  ws.forEach((w, i) => { c.fillText(w, at, y); at += widths[i] + gap; });
   c.restore();
 }
 
@@ -123,7 +132,7 @@ function plate(c, p, s, on) {
   c.globalAlpha = on ? 1 : 0.8;
   c.fillStyle = on ? 'rgba(20,10,0,0.85)' : color;
   c.font = `11px ${s.font}`; c.textAlign = 'center'; c.textBaseline = 'middle';
-  p.lines.forEach((line, i) => c.fillText(line, p.x, p.y + 1 + (i - (p.lines.length - 1) / 2) * 11));
+  p.lines.forEach((line, i) => words(c, line, p.x, p.y + 1 + (i - (p.lines.length - 1) / 2) * 11));
   c.restore();
 }
 
@@ -162,7 +171,7 @@ function litArrow(c, a, color) {
 }
 
 // ---------- the dock ----------
-// Its floor: a dark pit inside the U, a hexagonal docking pad under the catch and the lock, and chevrons leading in.
+// Its floor: a dark pit inside the U, a hexagonal docking pad under the catch and the lock, and arrowheads leading in.
 function dockFloor(c, t, s) {
   const { dock: K, lockSpot: L } = t, x = (K.x + L.x) / 2, y = (K.y + L.y) / 2, a = Math.atan2(L.y - K.y, L.x - K.x);
   const [back, side1, side2] = t.walls.filter(w => w.kind === 'dock');
@@ -175,8 +184,10 @@ function dockFloor(c, t, s) {
   for (let i = 0; i < 6; i++) c.lineTo(Math.cos(i * TAU / 6) * 19, Math.sin(i * TAU / 6) * 19);
   c.closePath();
   c.strokeStyle = s.lamps.cyan; c.globalAlpha = 0.55; c.lineWidth = 1.5; c.stroke();
-  c.globalAlpha = 0.7; c.strokeStyle = s.lamps.pink; c.lineWidth = 3.5; c.lineJoin = 'round';
-  for (const d of [-80, -98]) { c.beginPath(); c.moveTo(d - 9, -12); c.lineTo(d, 0); c.lineTo(d - 9, 12); c.stroke(); }
+  c.globalAlpha = 0.7; c.fillStyle = s.lamps.pink;
+  for (const [d, k] of [[-76, 1], [-94, 0.8]]) {
+    c.beginPath(); c.moveTo(d, 0); c.lineTo(d - 14 * k, -8 * k); c.lineTo(d - 10 * k, 0); c.lineTo(d - 14 * k, 8 * k); c.closePath(); c.fill();
+  }
   c.restore();
 }
 
