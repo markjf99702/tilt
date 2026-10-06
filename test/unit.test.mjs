@@ -145,6 +145,27 @@ test('balls on different levels pass through each other', () => {
   assert.ok(Math.abs(a.x - 125) < 0.01 && Math.abs(b.x - 130) < 0.01, 'they pushed each other apart');
 });
 
+test('a flipper only meets balls on its own level, and the demo only flips for those', () => {
+  // A flipper on the playfield under the ramp: it catches a ball dropped on it, and one rolling down the ramp
+  // above passes over it.
+  const flipper = () => ({ side: 'left', x: 105, y: 330, len: 40, r0: 8, r1: 6, rest: 0, up: 0, angle: 0, omega: 0, pressed: false, e: 0.4 });
+  const t = testTable(), w = new World(t, NORMAL), on = makeBall(125, 300), over = makeBall(125, 300);
+  t.flippers.push(flipper());
+  over.level = 1; w.balls.push(on, over);
+  run(w, 400, () => { w.events.length = 0; });
+  assert.ok(on.y < 330, `the ball on the playfield fell through the flipper, to y ${on.y.toFixed(0)}`);
+  assert.ok(over.y > 400, `the ball on the ramp stopped at y ${over.y.toFixed(0)}`);
+  for (const level of [1, 0]) {
+    const g = new TestGame({ ...NORMAL });
+    g.start('play');
+    const f = flipper(), b = makeBall(130, 300);
+    g.table.flippers.push(f);
+    b.level = level; g.world.balls.push(b); g.state = 'live';
+    g.autopilot();
+    assert.equal(!!f.cool, level === 0, `the demo ${f.cool ? 'flipped' : "didn't flip"} for a ball on level ${level}`);
+  }
+});
+
 test('a locked ball is not in play: the ball ends when the last one in play drains', () => {
   const g = new TestGame({ ...NORMAL, ballSave: 0 });
   g.start('play');
