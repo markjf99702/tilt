@@ -111,6 +111,31 @@ await space.waitForTimeout(1300);
 await space.waitForFunction(() => performance.now() % 800 < 200);
 await save(await space.screenshot(), 'docs/phone-space.png');
 
+// Haunted House in a game: a ghost glowing in the left window and another on the right wall, the door open with the
+// trapdoor glowing behind it; then the same game down in the basement, the coffin's lid half off.
+const haunted = await open({ width: 390, height: 844 }, 2, '?table=haunted');
+await haunted.evaluate(() => {
+  const t = window.tilt;
+  t.startGame();
+  const g = t.game, l = g.lamps;
+  g.score = 284650; l.mult = 2; l.lanes = [true, false, false]; l.skillLane = -1; l.doorOpen = true;
+  for (const i of [1, 3]) { g.ghosts[i].lit = true; g.ghosts[i].until = Infinity; }
+  const b = g.world.balls[0]; b.x = 300; b.y = 610; b.vx = 0; b.vy = 0; g.state = 'live'; g.saveUntil = 0; g.saveArmed = false;
+  window.tilt.setPaused(true);
+  document.getElementById('pause').hidden = true;
+});
+await haunted.waitForTimeout(1300);
+await haunted.waitForFunction(() => performance.now() % 800 < 200);
+await save(await haunted.screenshot(), 'docs/phone-haunted.png');
+await haunted.evaluate(() => {
+  const g = window.tilt.game, b = g.world.balls[0];
+  g.floor = 1; b.level = 1; b.x = 330; b.y = 700;
+  g.table.lids[0].off = true; g.table.lids[1].off = true;
+});
+await haunted.waitForTimeout(1300);
+await haunted.waitForFunction(() => performance.now() % 800 < 200);
+await save(await haunted.screenshot(), 'docs/phone-basement.png');
+
 await browser.close();
 server.close();
 console.log('screenshots written');
