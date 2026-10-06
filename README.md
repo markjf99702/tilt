@@ -46,6 +46,6 @@ To put it online with GitHub Pages: **Settings → Pages → Build and deploymen
 - `js/tables/classic/`: the Classic table: `layout.js` (where everything is, in millimetres), `rules.js` (what everything scores, its lamps and bonus), `draw.js` (its playfield, lamps and toys) and `skins.js` (colours, names and artwork). `index.js` puts them together, with its rules for How to play.
 - `js/settings.js`: the machine's adjustments (slope, game speed, flipper strength, ball save, tilt warnings), which difficulty levels will build on.
 - `js/render.js`: fits a table to the canvas and draws what every table has (rails, posts, flippers, the ball, the plunger); `js/sound.js`: every sound, made in the browser with Web Audio.
-- `js/main.js`: the page: controls, menus, high scores and the clock.
+- `js/main.js`: the page: controls, menus, the table picker, high scores (each table keeps its own) and the clock.
 - `fonts/`: Bungee and Figtree (SIL Open Font License), served from here so nothing loads from elsewhere.
 - `sw.js`: keeps a copy for playing offline.

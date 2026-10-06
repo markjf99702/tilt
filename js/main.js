@@ -9,25 +9,20 @@ import { TABLES } from './tables.js';
 
 const $ = id => document.getElementById(id);
 const KEY = 'tilt.v1';
+const FIRST = Object.keys(TABLES)[0]; // the table a new player starts on
 const store = load();
-const table = TABLES.classic; // the only table so far
 const renderer = new Renderer($('table'));
-renderer.setTable(table);
-const skin = table.skins[store.skin] || Object.values(table.skins)[0];
-renderer.setSkin(skin);
 setSound(store.sound !== false);
 
+// The table in the machine (see useTable below), its skin, and its rules running a game or the demo.
+let table, skin, game;
 let msgUntil = 0, msgText = '';
-const game = new table.Game({ ...NORMAL }, {
+const out = {
   sound: (n, o) => play(n, o),
   show: (text, secs) => { msgText = text; msgUntil = performance.now() + secs * 1000; },
   over: g => gameOver(g),
-});
+};
 let paused = false;
-game.start('attract');
-
-// How to play: the controls are the same on every table, then come the table's own rules.
-for (const h of table.howTo) $('howTo').insertAdjacentHTML('beforeend', `<li>${h}</li>`);
 
 // ---------- saved things ----------
 function load() {
@@ -38,11 +33,11 @@ function save() {
 }
 const fmt = n => n.toLocaleString('en-US');
 
+// Each table keeps its own top five.
 function showBest() {
   const top = (store[table.scoresKey] || [])[0];
   $('bestLine').textContent = top ? `Best: ${fmt(top.score)}` : '';
 }
-showBest();
 
 // ---------- layout ----------
 function resize() {
@@ -55,7 +50,46 @@ function resize() {
   b.style.bottom = Math.max(6, r.height - (renderer.oy + game.table.H * s) + 6) + 'px';
 }
 window.addEventListener('resize', resize);
-resize();
+
+// ---------- tables ----------
+// The picker on the title card, and Change table at the end of a game, when there's more than one table.
+for (const [id, t] of Object.entries(TABLES)) {
+  $('tables').insertAdjacentHTML('beforeend', `<label><input type="radio" name="table" value="${id}"><span><b>${t.name}</b><small>${t.blurb}</small></span></label>`);
+}
+$('tables').hidden = $('tablesRow').hidden = Object.keys(TABLES).length < 2;
+$('tables').addEventListener('change', e => useTable(e.target.value));
+
+// Puts a table in the machine, with the demo playing on it: its drawing and rules, its How to play (under the
+// controls, which are the same on every table) and its best score. The next visit starts on it too, and the
+// address names it, so a link opens it.
+function useTable(id) {
+  table = TABLES[id];
+  skin = table.skins[store.skin] || Object.values(table.skins)[0];
+  renderer.setTable(table);
+  renderer.setSkin(skin);
+  game = new table.Game({ ...NORMAL }, out);
+  game.start('attract');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', skin.theme);
+  for (const li of $('howTo').querySelectorAll('li[data-table]')) li.remove();
+  for (const h of table.howTo) $('howTo').insertAdjacentHTML('beforeend', `<li data-table>${h}</li>`);
+  $('tables').querySelector(`input[value="${id}"]`).checked = true;
+  if (store.table !== id) { store.table = id; save(); }
+  // The first table needs no name in the address, and anything else there (?debug, say) stays as it was. The
+  // single-file copy may be inside someone else's page, so it leaves the address alone.
+  if (!window.TILT_SINGLE_FILE) {
+    try {
+      const keep = location.search.slice(1).split('&').filter(p => p && p.split('=')[0] !== 'table');
+      const q = (id === FIRST ? keep : [...keep, 'table=' + id]).join('&'), search = q && '?' + q;
+      if (search !== location.search) history.replaceState(history.state, '', location.pathname + search + location.hash);
+    } catch { /* an address it can't change: play on */ }
+  }
+  showBest();
+  resize();
+}
+
+// The table a link names, else the one played last, else the first.
+const asked = new URLSearchParams(location.search).get('table');
+useTable([asked, store.table].find(id => id && Object.hasOwn(TABLES, id)) || FIRST);
 
 // ---------- controls: touch ----------
 const stage = $('stage');
@@ -113,7 +147,9 @@ document.addEventListener('keydown', e => {
   unlock();
   if (e.code === 'Escape' || e.code === 'KeyP') { if (game.mode === 'play') setPaused(!paused); return; }
   if (game.mode !== 'play' || paused) {
-    if ((e.code === 'Enter' || e.code === 'Space') && !e.repeat && !$('title').hidden && document.activeElement?.tagName !== 'SUMMARY') { e.preventDefault(); startGame(); }
+    // Enter or Space starts a game from the title card, but not while opening How to play or picking a table.
+    const busy = document.activeElement?.tagName === 'SUMMARY' || document.activeElement?.closest('.tables');
+    if ((e.code === 'Enter' || e.code === 'Space') && !e.repeat && !$('title').hidden && !busy) { e.preventDefault(); startGame(); }
     return;
   }
   if (e.repeat) { if ([...LEFT, ...RIGHT, ...PLUNGE, 'ArrowUp'].includes(e.code)) e.preventDefault(); return; }
@@ -121,7 +157,7 @@ document.addEventListener('keydown', e => {
   else if (RIGHT.includes(e.code)) { e.preventDefault(); game.flip('right', true); }
   else if (PLUNGE.includes(e.code)) {
     e.preventDefault();
-    if (game.ballInLane()) game.plunge(true);
+    if (game.state === 'lane' && game.ballInLane()) game.plunge(true);
     else if (e.code === 'Space') doNudge(0);
   } else if (e.code === 'ArrowUp') { e.preventDefault(); doNudge(0); }
 });
@@ -141,6 +177,7 @@ function startGame() {
 }
 $('startBtn').addEventListener('click', startGame);
 $('againBtn').addEventListener('click', startGame);
+$('tablesBtn').addEventListener('click', toTitle);
 $('menuBtn').addEventListener('click', () => {
   unlock();
   if (game.mode === 'play') setPaused(!paused);
@@ -227,7 +264,8 @@ function hud(now) {
   }
   const ball = game.mode === 'play' ? `Ball ${game.ballNo}` + (game.extraBalls > 0 ? '+' : '') : game.mode === 'over' ? 'Game over' : 'Best';
   if (ball !== shownBall) { shownBall = ball; $('ballNo').textContent = ball; }
-  const showLaunch = game.mode === 'play' && game.ballInLane() && !paused;
+  // Only while a ball waits to be plunged: not while the machine plunges another itself in multiball.
+  const showLaunch = game.mode === 'play' && game.state === 'lane' && game.ballInLane() && !paused;
   if (launch.hidden === showLaunch) launch.hidden = !showLaunch;
   if (showLaunch) $('meter').style.height = (game.table.plunger.pull * 100) + '%';
 }
@@ -236,7 +274,7 @@ document.fonts?.ready.then(() => { renderer.dirty = true; });
 requestAnimationFrame(frame);
 
 // For the tests and the screenshot tool.
-window.tilt = { game, renderer, store, startGame, setPaused };
+window.tilt = { get game() { return game; }, get table() { return table; }, renderer, store, startGame, setPaused, useTable };
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:' && !window.TILT_SINGLE_FILE) {
   navigator.serviceWorker.register('sw.js').catch(() => { });

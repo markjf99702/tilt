@@ -38,6 +38,7 @@
     <div class="card">
       <h1 id="titleH">Tilt</h1>
       <p class="lede">A classic pinball table, in your pocket.</p>
+      <fieldset class="tables" id="tables" hidden><legend>Table</legend></fieldset>
       <button type="button" class="go" id="startBtn">Start game</button>
       <p class="best" id="bestLine"></p>
       <details class="how">
@@ -79,6 +80,9 @@
       <p class="note" id="overNote"></p>
       <ol class="scores" id="scores"></ol>
       <button type="button" class="go" id="againBtn">Play again</button>
+      <div class="row" id="tablesRow" hidden>
+        <button type="button" class="ghost" id="tablesBtn">Change table</button>
+      </div>
     </div>
   </section>
 

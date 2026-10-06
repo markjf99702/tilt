@@ -1,7 +1,7 @@
 // Plays Tilt in Chromium through the real page:  node test/e2e.mjs  (needs Playwright)
 // Starts a game, launches with the Launch button, flips with touches on each half of the screen,
-// pauses, drains every ball, checks the high score survives a reload, and loads once more offline
-// (sw.js must keep every file the page loads).
+// pauses, drains every ball, checks the high score survives a reload, that a link to a table that isn't
+// there opens the first, and loads once more offline (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -43,9 +43,10 @@ assert.deepEqual([...loaded].filter(f => f !== 'sw.js' && !shell.includes(f)), [
 
 const peek = () => page.evaluate(() => { const g = window.tilt.game; return { mode: g.mode, state: g.state, ball: g.ballNo, score: g.score, balls: g.world.balls.length, left: g.table.flippers[0].pressed, right: g.table.flippers[1].pressed, pull: g.table.plunger.pull }; });
 
-// The title card, with the demo playing behind it.
+// The title card, with the demo playing behind it. The table picker is there when there's more than one table.
 assert.ok(await page.isVisible('#startBtn'));
 assert.equal((await peek()).mode, 'attract');
+assert.equal(await page.isVisible('#tables'), await page.locator('#tables input').count() > 1);
 
 await page.tap('#startBtn');
 await page.waitForFunction(() => window.tilt.game.mode === 'play');
@@ -100,6 +101,12 @@ assert.equal(await page.locator('#scores li').count(), 1);
 await page.reload();
 await page.waitForFunction(() => window.tilt);
 assert.match(await page.textContent('#bestLine'), /Best: [\d,]+/, 'the best score is remembered');
+
+// A link to a table that isn't there opens the first one, and the address stops naming it.
+await page.goto(base + '?table=nope');
+await page.waitForFunction(() => window.tilt);
+assert.equal(await page.evaluate(() => window.tilt.table.name), 'Classic');
+assert.ok(!new URL(page.url()).searchParams.has('table'), 'the address still names a table that is not there');
 
 // Fits a phone: nothing scrolls sideways.
 assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the page scrolls sideways on a phone');
