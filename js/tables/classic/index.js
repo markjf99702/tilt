@@ -8,9 +8,10 @@ import { SKINS } from './skins.js';
 
 export default {
   name: 'Classic',
-  build: buildTable,    // a fresh layout: its size in millimetres (W and H, which the renderer fits to the screen),
-                        // walls, posts, sensors, flippers (each with a side), plunger, and a 'laneExit' line across
-                        // the top of the shooter lane: past it, the ball is in play
+  // A fresh layout (the same one its rules build): its size in millimetres (W and H, which the renderer fits to
+  // the screen), walls, posts, sensors, flippers (each with a side), plunger, and a 'laneExit' line across the
+  // top of the shooter lane: past it, the ball is in play.
+  build: buildTable,
   Game: Classic,        // its rules: new table.Game(settings, out)
   skins: SKINS,         // the first one is the default
   paint,                // paint(c, layout, skin): what never changes, into the static layer
