@@ -12,7 +12,7 @@ const MULT_MAX = 5;
 const BALL_SAVE = 5;          // seconds: shorter than the machine's, but never over before the ball first reaches the flippers
 const GLOW = 3;               // seconds a ghost glows
 const DARK = [2, 6];          // seconds it's gone before it can glow again (somewhere between)
-const MAX_LIT = 2;            // ghosts glowing at once, at most
+const MAX_LIT = 2;            // ghosts glowing at once, at most (a knock on the door can wake one more)
 const NEED = [2, 3, 4];       // ghosts to catch to open the door: the first time, the second, and every time after
 const fmt = n => n.toLocaleString('en-US');
 
@@ -64,11 +64,12 @@ export class Haunted extends Game {
 
   // Each ghost glows for a few seconds, then is gone for a few more; never more than two at once.
   haunt() {
-    const now = this.time, n = this.ghosts.filter(g => g.lit).length;
+    const now = this.time;
+    let n = this.ghosts.filter(g => g.lit).length;
     for (const g of this.ghosts) {
       if (g.until > now) continue;
       if (g.lit) { g.lit = false; g.until = now + this.wsecs(DARK[0] + Math.random() * (DARK[1] - DARK[0])); }
-      else if (n < MAX_LIT) { g.lit = true; g.until = now + this.wsecs(GLOW); }
+      else if (n < MAX_LIT) { g.lit = true; n++; g.until = now + this.wsecs(GLOW); }
       else g.until = now + this.wsecs(1);
     }
   }
@@ -90,7 +91,8 @@ export class Haunted extends Game {
   event(e) {
     super.event(e);
     const o = e.obj, l = this.lamps, live = !this.tilted;
-    if (e.type === 'cross' && o.id === 'laneExit' && e.dir < 0) this.wake(1);
+    // The ghosts wake as the ball leaves the shooter lane (not when it only comes back round the arch to the lane's mouth).
+    if (e.type === 'cross' && o.id === 'laneExit' && e.dir < 0 && this.ghosts.every(g => g.until === Infinity)) this.wake(1);
     if (e.type === 'kick') {
       if (o.kind === 'bumper') { this.bumperFlash[o.i] = 1; this.sound('bumper', { i: o.i }); this.add(SCORES.bumper); }
       else if (o.kind === 'sling') { this.sound('sling', { side: o.side }); this.add(SCORES.sling); }
@@ -170,7 +172,7 @@ export class Haunted extends Game {
   }
 
   // Through the open door the ball drops through the trapdoor: it sinks out of sight, then the screen goes down to
-  // the basement (release()). The door shuts behind it, and takes another ghost to open next time.
+  // the basement (release()). The door shuts behind it, and takes more ghosts to open next time (up to four).
   fall(b) {
     const l = this.lamps;
     l.doorOpen = false; this.opened++; l.need = NEED[Math.min(this.opened, NEED.length - 1)];

@@ -46,7 +46,7 @@
 ### Haunted House
 
 - **The hard one.** Wider outlanes and shorter flippers than Classic, two pop bumpers, and five seconds of ball save (though it never runs out before the ball has first come down to the flippers).
-- **Ghosts** glow now and then: one in each window of the house, one on the left orbit's rail and one on the right wall. Each glows for three seconds at a time, never more than two at once. Hit one while it glows to catch it: 5,000 for the first on a ball, 10,000 for the next, up to 25,000.
+- **Ghosts** glow now and then: one in each window of the house, one on the left orbit's rail and one on the right wall. Each glows for three seconds at a time, no more than two at once (though a knock on the door can wake a third). Hit one while it glows to catch it: 5,000 for the first on a ball, 10,000 for the next, up to 25,000.
 - **The front door** opens once two ghosts are caught (three the next time, then four): the candles under the house count them. While it's shut, a hard shot knocks on it for 1,000 and wakes a ghost.
 - **The trapdoor** is behind the door. Shoot through the open door and the ball drops into the **basement**, a little table of its own under the house, with its own flippers and no outlanes. 10,000.
 - **The coffin** in the basement has a lid of three drop targets. Knock all three off to light an extra ball, once a game; after that, a coffin is worth 50,000.
