@@ -67,7 +67,7 @@ export function buildTable() {
   // ---- left orbit lane: rail, spinner, deflector, standups ----
   seg(54, 300, 54, 470, { r: 5, e: 0.5, kind: 'guide' });
   const spinner = line(0, 400, 49, 400, { id: 'spinner' });
-  seg(0, 575, 32, 610, { r: 4, e: 0.5, kind: 'rubber' });
+  seg(0, 560, 30, 612, { r: 4, e: 0.5, kind: 'rubber' });
   const standups = [340, 385, 430].map((y, i) =>
     seg(60, y - 13, 60, y + 13, { r: 3, e: 0.35, kind: 'standup', i }));
 
@@ -79,17 +79,25 @@ export function buildTable() {
   });
 
   // ---- slingshots, inlanes, outlanes ----
+  // Above each outlane a rubber shoulder leans in from the side wall, so a ball coming down the side of the
+  // table is steered towards the inlane, and the outlane opens only between the shoulder's end and the
+  // post on top of the divider. The right one starts under the drop-target bank.
+  chain([[0, 602], [35, 734]], { r: 4, e: 0.5, kind: 'rubber' });
+  chain([[474, 565], [452, 620], [457, 738]], { r: 4, e: 0.5, kind: 'rubber' });
   const slings = [];
   for (const side of [1, -1]) {
     const X = x => (side === 1 ? x : mx(x));
-    // Slingshot: its long face kicks; the other two sides are plain rubber.
+    // Slingshot: a rubber band stretched between two posts kicks; the other two sides are plain rubber.
     const [T, L, R] = SLING;
-    slings.push(seg(X(T[0]), T[1], X(R[0]), R[1], { r: 6, e: 0.6, kind: 'sling', side, kick: { speed: 1000, min: 260 } }));
+    const len = Math.hypot(R[0] - T[0], R[1] - T[1]), ux = (R[0] - T[0]) / len * 10, uy = (R[1] - T[1]) / len * 10;
+    slings.push(seg(X(T[0] + ux), T[1] + uy, X(R[0] - ux), R[1] - uy, { r: 6, e: 0.6, kind: 'sling', side, kick: { speed: 1000, min: 260 } }));
+    post(X(T[0]), T[1], 7, { e: 0.6, kind: 'post' });
+    post(X(R[0]), R[1], 7, { e: 0.6, kind: 'post' });
     seg(X(T[0]), T[1], X(L[0]), L[1], { r: 4, e: 0.5, kind: 'rubber' });
     seg(X(L[0]), L[1], X(R[0]), R[1], { r: 4, e: 0.4, kind: 'rubber' });
     // Divider between inlane and outlane, ending at the flipper.
-    chain([[X(46), 770], [X(46), 880], [X(142), 912]], { r: 4, e: 0.35, kind: 'rail' });
-    post(X(46), 770, 6, { e: 0.6, kind: 'post' });
+    chain([[X(45), 778], [X(45), 880], [X(142), 912]], { r: 4, e: 0.35, kind: 'rail' });
+    post(X(45), 778, 6, { e: 0.6, kind: 'post' });
     spot(X(72), 820, 13, { id: 'inlane', side });
     spot(X(23), 820, 13, { id: 'outlane', side });
   }

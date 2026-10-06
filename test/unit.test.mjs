@@ -88,6 +88,31 @@ test('the ball never leaves the table or sticks during a long demo', () => {
   assert.ok(worst < 3, `ball sat still for ${worst.toFixed(1)}s`);
 });
 
+test('a ball nobody flips always drains: no bounce loops and nowhere to sit', () => {
+  // Thrown in from all over the playfield at random speeds, and plunged at every strength.
+  seed(9);
+  const starts = [];
+  for (let i = 0; i < 120; i++) {
+    const a = Math.random() * Math.PI * 2, v = Math.random() * 2500;
+    starts.push({ x: 20 + Math.random() * 446, y: 150 + Math.random() * 700, vx: Math.cos(a) * v, vy: Math.sin(a) * v });
+  }
+  for (let i = 0; i < 12; i++) starts.push({ plunge: NORMAL.launchMin + (NORMAL.launchMax - NORMAL.launchMin) * i / 11 });
+  for (const s of starts) {
+    const t = buildTable(), w = new World(t, NORMAL);
+    const b = makeBall(s.plunge ? 503 : s.x, s.plunge ? t.plunger.y - BALL_R : s.y); w.balls.push(b);
+    if (s.plunge) { t.plunger.firing = true; t.plunger.fireSpeed = s.plunge; }
+    else {
+      const x = b.x, y = b.y; w.collide(b);
+      if (Math.hypot(b.x - x, b.y - y) > 0.01 || b.x > PF_RIGHT - 16) continue; // started inside something
+      b.vx = s.vx; b.vy = s.vy;
+    }
+    let ms = 0;
+    while (ms < 30000 && b.y < H + 30) { w.step(); w.events.length = 0; ms++; }
+    if (s.plunge && b.x > PF_RIGHT && b.y > 900) continue; // too soft: it fell back onto the plunger
+    assert.ok(ms < 30000, `still in play after 30 s, at ${b.x.toFixed(0)}, ${b.y.toFixed(0)}`);
+  }
+});
+
 test('three balls, then game over; bonus is counted and multiplied', () => {
   seed(5);
   let over = false;

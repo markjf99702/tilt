@@ -12,6 +12,7 @@ export const STEP = 1 / 1000;
 const MAX_SPEED = 7000;
 const GRIP = 0.15;      // sliding friction between the ball and the playfield (steel on a waxed playfield)
 const WALL_GRIP = 0.5;  // and between the ball and the walls, rubbers and flippers it rubs against
+const CREEP = 30;       // mm/s: rubbing against a wall slows a ball no further than this
 
 // The ball rolls. Besides its velocity (vx, vy) it keeps its spin, as the speed it would roll at (wx, wy).
 // Rolling, the two match. A kick, a flip or a bounce changes the velocity but not the spin, so the ball
@@ -158,7 +159,9 @@ function bounce(b, nx, ny, sx, sy, e, mu) {
   let tx = rx - vn * nx, ty = ry - vn * ny;
   const tl = Math.hypot(tx, ty);
   if (tl > 0) {
-    const k = Math.max(0, tl - mu * (1 + ee) * -vn) / tl;
+    // ...but never quite stops it: a ball isn't held still on the round top of a post or a nearly flat
+    // rail, it creeps off and rolls away, as a real one does.
+    const k = Math.max(Math.min(tl, CREEP), tl - mu * (1 + ee) * -vn) / tl;
     tx *= k; ty *= k;
   }
   b.vx = tx - ee * vn * nx + sx; b.vy = ty - ee * vn * ny + sy;

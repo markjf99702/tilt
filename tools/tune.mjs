@@ -14,7 +14,8 @@ function seed(n) {
 }
 
 const drains = { leftOutlane: 0, rightOutlane: 0, center: 0 };
-let timeouts = 0; // balls still alive after two minutes (a repeating loop): taken off the table and not counted as drains
+let timeouts = 0; // balls still alive after two minutes: taken off the table and not counted as drains. The autopilot
+                  // never tires, so these are mostly long rallies; the unit tests check that an unflipped ball always drains.
 const speeds = [], ballTimes = [];
 let liveSecs = 0, score = 0, sideWallSecs = 0;
 
