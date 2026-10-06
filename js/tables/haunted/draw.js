@@ -13,8 +13,8 @@ const DOOR_ARROW = { x: MID, y: 540, a: -Math.PI / 2 };
 // Each ghost's lamp, and where the ghost shows itself while it glows: in its window, or beside its target on the rails.
 const GHOST_LAMPS = [[84, 393], [192, 462], [294, 462], [440, 490]];
 const GHOST_AT = [[80, 393], [200, 413], [286, 413], [446, 490]];
-// And in the basement.
-const STAIRS_ARROW = { x: 404, y: 545, a: -1.15 };
+// And in the basement: the arrow up the treads, pointing at the lamp at the top of the stairs.
+const STAIRS_ARROW = { x: 404, y: 545, a: -1.29 };
 const EXTRA_BALL = { x: 398, y: 610 };
 
 const on = floor => o => (o.level || 0) === floor;
@@ -106,9 +106,13 @@ function words(c, text, x, y) {
 function candle(c, x, y, burning, s) {
   c.save();
   c.fillStyle = '#9a7a3a'; c.fillRect(x - 7, y + 9, 14, 3);
-  c.fillStyle = burning ? '#fff3d6' : 'rgba(255,243,214,0.5)'; c.fillRect(x - 4, y - 4, 8, 14);
+  c.fillStyle = burning ? '#fff3d6' : 'rgba(255,243,214,0.7)'; c.fillRect(x - 4, y - 4, 8, 14);
   if (burning) { glow(c, x, y - 9, 6, s.lamps.candle); c.fillStyle = s.lamps.candle; c.beginPath(); c.ellipse(x, y - 9, 3, 5, 0, 0, TAU); c.fill(); }
-  else { c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(x - 0.5, y - 8, 1, 4); }
+  else {
+    // A black wick with an ember on it.
+    c.fillStyle = '#1a0e06'; c.fillRect(x - 0.8, y - 9, 1.6, 5);
+    c.fillStyle = 'rgba(255,110,40,0.8)'; c.beginPath(); c.arc(x, y - 9, 1.3, 0, TAU); c.fill();
+  }
   c.restore();
 }
 
@@ -148,6 +152,7 @@ function paintBasement(c, t, s) {
   for (let i = 0; i < 6; i++) { const y = 470 + i * 16, x0 = 384 - i * 6; c.fillRect(x0, y, 446 - x0, 9); }
   c.restore();
   arrow(c, STAIRS_ARROW.x, STAIRS_ARROW.y, STAIRS_ARROW.a, 16, s.lamps.green);
+  insert(c, t.stairs.x, t.stairs.y, 9, s.lamps.green);
   // The coffin, a brass cross on its lid.
   c.save();
   c.beginPath(); c.moveTo(220, 455); c.lineTo(266, 455); c.lineTo(300, 500); c.lineTo(290, 548); c.lineTo(196, 548); c.lineTo(186, 500); c.closePath();
@@ -177,7 +182,10 @@ export function draw(c, game, s, now, floor) {
   if (floor === BASEMENT) {
     drawLids(c, t, s);
     if (game.lamps.extraBallLit && blink) lit(c, EXTRA_BALL.x, EXTRA_BALL.y, 8, s.lamps.red);
-    if (slowBlink || game.lamps.extraBallLit) { glow(c, STAIRS_ARROW.x, STAIRS_ARROW.y, 12, s.lamps.green); arrow(c, STAIRS_ARROW.x, STAIRS_ARROW.y, STAIRS_ARROW.a, 16, s.lamps.green, true); }
+    if (slowBlink || game.lamps.extraBallLit) {
+      glow(c, STAIRS_ARROW.x, STAIRS_ARROW.y, 12, s.lamps.green); arrow(c, STAIRS_ARROW.x, STAIRS_ARROW.y, STAIRS_ARROW.a, 16, s.lamps.green, true);
+      lit(c, t.stairs.x, t.stairs.y, 9, s.lamps.green);
+    }
     if (game.lamps.shootAgain || (game.lamps.ballSave && blink)) lit(c, MID, 880, 13, s.lamps.red);
     for (const b of game.world.balls) if (b.level === BASEMENT) heldBall(c, b, game);
     drawSlings(c, t, s, BASEMENT);
@@ -251,7 +259,7 @@ function drawGhosts(c, game, s, now) {
     const g = game.ghosts[i], [x, y] = GHOST_AT[i];
     c.save();
     c.lineCap = 'round';
-    c.strokeStyle = g.lit ? s.ghost : 'rgba(201,255,230,0.25)'; c.lineWidth = 6;
+    c.strokeStyle = g.lit ? s.ghost : 'rgba(201,255,230,0.4)'; c.lineWidth = 6;
     c.beginPath(); c.moveTo(w.ax, w.ay); c.lineTo(w.bx, w.by); c.stroke();
     c.restore();
     const going = g.until - game.time < game.wsecs(0.8);
