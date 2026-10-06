@@ -1,8 +1,8 @@
 // The machine every table shares: serving each ball to the plunger, the flippers, nudging and tilt, ball save,
 // extra balls, the end of each ball and of the game, and the demo's autopilot. A table's rules extend Game:
 // they build the table (build()), score what the physics reports (a bumper kicked, a rollover was crossed)
-// and keep the lamps that the table draws. They can extend reset(), nextBall(), serve() and update(), and
-// fill in event(), flipped(), release() and countBonus() below.
+// and keep the lamps that the table draws. They can extend reset(), nextBall(), serve(), update() and event(),
+// always calling the version here, and fill in flipped(), release() and countBonus() below.
 
 import { World, makeBall, BALL_R } from './physics.js';
 
@@ -77,7 +77,7 @@ export class Game {
     if (down && (this.state === 'live' || this.state === 'lane')) this.flipped(side);
   }
 
-  // A flipper button went down with a ball on the table (Classic changes lanes).
+  // A flipper button went down with a ball on the table (to change lanes, say).
   flipped(side) { }
 
   plunge(down) {
@@ -201,7 +201,7 @@ export class Game {
         if (b.held) return false;
         const dx = b.x - f.x, dy = b.y - f.y;
         const along = f.side === 'left' ? dx : -dx;
-        return along > 10 && along < 95 && dy > -70 && dy < 40 && b.vy > -200;
+        return along > 10 && along < f.len + 15 && dy > -70 && dy < 40 && b.vy > -200;
       });
       if (near && !f.cool) {
         f.cool = true;

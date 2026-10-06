@@ -49,7 +49,7 @@ function resize() {
   const b = $('launch'), s = renderer.scale;
   const edge = renderer.ox + game.table.plunger.x0 * s;
   b.style.right = Math.max(4, r.width - edge + 4) + 'px';
-  b.style.bottom = Math.max(6, r.height - (renderer.oy + table.H * s) + 6) + 'px';
+  b.style.bottom = Math.max(6, r.height - (renderer.oy + game.table.H * s) + 6) + 'px';
 }
 window.addEventListener('resize', resize);
 resize();

@@ -11,7 +11,7 @@ export class Renderer {
     this.cv = canvas;
     this.ctx = canvas.getContext('2d');
     this.layer = document.createElement('canvas');
-    this.table = null;
+    this.table = null; // the table's module (from tables.js); game.table is the layout it built
     this.skin = null;
     this.debug = /[?&]debug\b/.test(location.search);
   }
@@ -67,19 +67,20 @@ export class Renderer {
 }
 
 // ---------- the static layer ----------
-// Rails, guides, rubbers, gate wires and posts: the parts of a layout that never move.
+// Rails, guides, rubbers, gate wires and posts: the parts of a layout that never move. They are told apart by
+// kind ('rail', 'guide', 'rubber', 'gate'; circles 'post' or 'rail'); walls and circles of any other kind are
+// left for the table to draw itself.
 export function drawWalls(c, t, s) {
   // Rails, guides and rubbers.
+  c.lineCap = 'round';
   for (const w of t.walls) {
-    if (['drop', 'standup', 'sling', 'gate'].includes(w.kind)) continue;
-    c.lineCap = 'round';
     if (w.kind === 'rail') {
       c.strokeStyle = s.railShade; c.lineWidth = Math.max(5, w.r * 2 + 4);
       line(c, w); c.strokeStyle = s.rail; c.lineWidth = Math.max(2.5, w.r * 2 + 1); line(c, w);
     } else if (w.kind === 'guide') {
       c.strokeStyle = s.railShade; c.lineWidth = w.r * 2 + 2; line(c, w);
       c.strokeStyle = s.guide; c.lineWidth = w.r * 2 - 1; line(c, w);
-    } else {
+    } else if (w.kind === 'rubber') {
       c.strokeStyle = s.rubber; c.lineWidth = w.r * 2; line(c, w);
     }
   }
@@ -87,7 +88,7 @@ export function drawWalls(c, t, s) {
   for (const w of t.walls) if (w.kind === 'gate') { c.strokeStyle = s.rail; c.lineWidth = 2; line(c, w); }
   // Posts.
   for (const p of t.circles) {
-    if (p.kind === 'bumper') continue;
+    if (p.kind !== 'post' && p.kind !== 'rail') continue;
     c.fillStyle = s.rubber; c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.fill();
     c.fillStyle = s.post; c.beginPath(); c.arc(p.x, p.y, p.r * 0.45, 0, TAU); c.fill();
   }

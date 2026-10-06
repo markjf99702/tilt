@@ -9,13 +9,15 @@ import { SKINS } from './skins.js';
 export default {
   name: 'Classic',
   W, H,                 // its size in millimetres: the renderer fits this box to the screen
-  build: buildTable,    // a fresh layout: walls, posts, sensors, flippers (each with a side), plunger
+  build: buildTable,    // a fresh layout: W and H, walls, posts, sensors, flippers (each with a side), plunger,
+                        // and a 'laneExit' line across the top of the shooter lane: past it, the ball is in play
   Game: Classic,        // its rules: new table.Game(settings, out)
   skins: SKINS,         // the first one is the default
   paint,                // paint(c, layout, skin): what never changes, into the static layer
   draw,                 // draw(c, game, skin, now): lamps, toys, balls, flippers, plunger and apron, each frame
   scoresKey: 'scores',  // where its top five are saved; Classic keeps the one from before there were tables
-  // For the checks every table gets (test/unit.test.mjs and tools/tune.mjs).
+  // For the checks every table gets (test/unit.test.mjs and tools/tune.mjs). tune.mjs tells drains apart by
+  // 'outlane' and 'inlane' spot sensors with a side (1 is the left).
   checks: {
     area: { x: 20, y: 150, w: 446, h: 700 },             // where the no-flip test throws balls in
     sideWall: b => b.x < 30 || (b.x > 456 && b.x < 486), // the ball is running along a side wall
