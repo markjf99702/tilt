@@ -82,6 +82,14 @@ export function play(name, o = {}) {
       break;
     case 'saucer': noise(t, 0.15, 300, 1, 0.8, 'lowpass'); break;
     case 'saucerKick': noise(t, 0.1, 800, 1, 1); tone(t, 120, 0.1, 0.5, 'square', 50); break;
+    case 'ramp': tone(t, 220, 0.4, 0.12, 'sawtooth', 880); noise(t, 0.35, 1800, 0.7, 0.35); bell(t + 0.32, 1047, 0.18); break;
+    case 'lock': noise(t, 0.16, 260, 0.8, 1, 'lowpass'); [98, 147, 196].forEach(f => tone(t + 0.05, f, 0.7, 0.22, 'triangle')); break;
+    case 'lift': noise(t, 0.1, 160, 0.8, 0.9, 'lowpass'); tone(t, 90, 0.14, 0.45, 'sine', 45); break;
+    case 'multiball': [0, 0.09, 0.18, 0.27, 0.36, 0.5].forEach((d, i) => bell(t + d, [392, 523, 659, 784, 1047, 1319][i], 0.2)); break;
+    case 'jackpot':
+      [0, 0.12, 0.24, 0.36, 0.48, 0.6, 0.84].forEach((d, i) => bell(t + d, [523, 659, 784, 1047, 784, 1047, 1568][i], 0.22));
+      tone(t, 131, 1.1, 0.25, 'sawtooth', 262);
+      break;
     case 'plunge': noise(t, 0.12, 500 + o.power * 900, 0.8, 0.5 + o.power * 0.5); break;
     case 'thud': if (ok('thud', 0.05)) noise(t, 0.05, 400, 1, Math.min(0.6, o.speed / 3000), 'lowpass'); break;
     case 'nudge': noise(t, 0.12, 120, 0.7, 1, 'lowpass'); break;

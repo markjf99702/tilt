@@ -1,11 +1,13 @@
 // The physics and the rules, without a browser:  node --test test/unit.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { World, makeBall, BALL_R } from '../js/physics.js';
+import { World, makeBall, BALL_R, flipperEnds, closestOnSeg } from '../js/physics.js';
 import { Game } from '../js/game.js';
 import { TABLES } from '../js/tables.js';
 import { buildTable, H } from '../js/tables/classic/layout.js';
 import { Classic, SCORES } from '../js/tables/classic/rules.js';
+import { buildTable as buildSpace, HAIRPIN } from '../js/tables/space/layout.js';
+import { Space, SCORES as SPACE } from '../js/tables/space/rules.js';
 import { NORMAL } from '../js/settings.js';
 
 const run = (w, ms, each) => { for (let i = 0; i < ms; i++) { w.step(); each?.(i); } };
@@ -292,4 +294,326 @@ test('a skill shot pays 25,000 only in the flashing lane', () => {
   const before = g.score;
   g.event({ type: 'enter', obj: g.table.lanes[lane], ball: g.world.balls[0], speed: 500 });
   assert.equal(g.score - before, SCORES.skill + SCORES.lane);
+});
+
+// Space's own tests. A shot's window is how much of the flip timing makes it: world milliseconds, trying a flip
+// every 5 ms with the flipper held up for 200.
+
+// Flips flipper fi on Space's table t at the ball b, wherever it is. Returns what the ball crossed, rolled over and was
+// kicked by, in order ('rampIn', 'orbit-1', 'inlane1', 'bumper'...), until the shot has made the ramp or the orbit or
+// missed them both (the flip is over and the ball is on its way back down the playfield), or the ball has drained.
+function spaceShot(t, b, fi) {
+  const w = new World(t, NORMAL), f = t.flippers[fi];
+  f.pressed = true; w.balls.push(b);
+  const seen = [];
+  for (let i = 0; i < 4000 && b.y < t.H + 30; i++) {
+    if (i === 200) f.pressed = false;
+    w.step();
+    for (const e of w.events) {
+      if (e.type === 'cross') seen.push(e.obj.id + (e.obj.id === 'orbit' ? e.dir : ''));
+      else if (e.type === 'enter') seen.push(e.obj.id + (e.obj.side ?? ''));
+      else if (e.type === 'kick') seen.push(e.obj.kind);
+    }
+    w.events.length = 0;
+    if (madeRamp(seen) || seen.some(e => ['orbit1', 'orbit-1', 'rampBack', 'bumper', 'lane', 'dock'].includes(e))) break;
+    if (i > 200 && !b.level && b.vy > 0 && b.y > 750 && !seen.includes('rampOut')) break;
+  }
+  Object.assign(f, { pressed: false, angle: f.rest, omega: 0 });
+  return seen;
+}
+// Up the ramp, off the end of its wire and into the left inlane, in that order.
+function madeRamp(seen) {
+  const i = seen.indexOf('rampIn'), j = seen.indexOf('rampOut', i);
+  return i >= 0 && j > i && seen.indexOf('inlane1', j) > j;
+}
+// A ball let go at (x, y) rolling down the table at vy, flipped at every timing from `from` to `to` ms. Until its flip
+// every try is the same ball rolling down, so each one starts from where that ball had got to.
+function sweep(x, y, vy, fi, from = 0, to = 1300) {
+  const t = buildSpace(), w = new World(t, NORMAL), b = makeBall(x, y), shots = [];
+  b.vy = b.wy = vy; w.balls.push(b);
+  for (let ms = 0; ms <= to && b.y < t.H + 30; ms++) {
+    if (ms >= from && ms % 5 === 0) shots.push(spaceShot(t, { ...b, inside: new Set(b.inside) }, fi));
+    w.step(); w.events.length = 0;
+  }
+  return shots;
+}
+// How many milliseconds of flip timing make the shot.
+const shotWindow = (shots, made) => shots.filter(made).length * 5;
+
+test('Space: the left flipper makes the ramp, which brings the ball back to it; the right one makes the orbit', () => {
+  for (const v of [300, 700]) {
+    const ms = shotWindow(sweep(72, 790, v, 0), madeRamp);
+    assert.ok(ms >= 40, `rolling down the left inlane at ${v} mm/s, the ramp's window is only ${ms} ms`);
+  }
+  let ramp = 0;
+  for (const v of [300, 700]) {
+    const shots = sweep(414, 790, v, 1);
+    ramp += shotWindow(shots, madeRamp);
+    const orbit = shotWindow(shots, s => s.includes('orbit-1'));
+    assert.ok(orbit >= 25, `rolling down the right inlane at ${v} mm/s, the orbit's window is only ${orbit} ms`);
+  }
+  assert.ok(ramp > 0, 'the right flipper never makes the ramp');
+});
+
+test('Space: a ball coming off the ramp can be shot straight back up it', () => {
+  const ms = shotWindow(sweep(71, 801, 1250, 0, 0, 1000), madeRamp);
+  assert.ok(ms >= 40, `the window is only ${ms} ms`);
+});
+
+test('Space: a ramp shot too weak to reach the top rolls back out onto the left flipper', () => {
+  const t = buildSpace(), w = new World(t, NORMAL), b = makeBall(210, 500);
+  b.vy = b.wy = -1000; w.balls.push(b);
+  const seen = [];
+  let x900 = null;
+  for (let i = 0; i < 4000 && x900 === null; i++) {
+    const py = b.y;
+    w.step();
+    for (const e of w.events) if (e.type === 'cross') seen.push(e.obj.id);
+    w.events.length = 0;
+    if (py < 900 && b.y >= 900) x900 = b.x;
+  }
+  assert.deepEqual(seen, ['rampIn', 'rampBack']);
+  assert.equal(b.level, 0);
+  assert.ok(x900 > 150 && x900 < 219, `it came down at x ${x900?.toFixed(0)}, not on the left flipper`);
+});
+
+test('Space: the dock lifts a ball onto the ramp, which carries it to the left inlane', () => {
+  for (const at of ['dock', 'lockSpot']) {
+    const g = new Space({ ...NORMAL }), t = g.table, b = makeBall(t[at].x, t[at].y);
+    g.world.balls.push(b);
+    g.release(b);
+    let ms = 0, inlane = false;
+    while (!inlane && ms < 1500) {
+      g.world.step(); ms++;
+      inlane = g.world.events.some(e => e.obj.id === 'inlane' && e.obj.side === 1);
+      g.world.events.length = 0;
+    }
+    assert.ok(inlane, `lifted from ${at === 'dock' ? 'the catch' : 'the lock'}, it wasn't in the left inlane after 1.5 s`);
+  }
+});
+
+test('Space: nothing holds a ball still anywhere on the ramp', () => {
+  // The incline, the hairpin (all but its very top, where a ball balanced exactly would stay) and the wire.
+  const { x, y, r } = HAIRPIN, spots = [[211, 460], [212, 420], [213, 380], [214, 340], [71, 320], [71, 450], [71, 600], [71, 780]];
+  for (let a = 0; a <= 180; a += 5) if (Math.abs(a - 90) > 2) spots.push([x + Math.cos(a * Math.PI / 180) * r, y - Math.sin(a * Math.PI / 180) * r]);
+  for (const [bx, by] of spots) {
+    const w = new World(buildSpace(), NORMAL), b = makeBall(bx, by);
+    b.level = 1; w.balls.push(b);
+    let ms = 0;
+    while (b.level && ms < 4000) { w.step(); w.events.length = 0; ms++; }
+    assert.equal(b.level, 0, `a ball let go at ${bx.toFixed(0)}, ${by.toFixed(0)} was still on the ramp after 4 s`);
+  }
+});
+
+test('Space: from a cradle, the upper flipper has a clear shot at the dock', () => {
+  // The ball settles on the raised flipper; then it's let go and flipped again at every moment from there.
+  const t0 = buildSpace(), w0 = new World(t0, NORMAL), cradled = makeBall(455, 470);
+  t0.flippers[2].pressed = true; t0.flippers[2].angle = t0.flippers[2].up; w0.balls.push(cradled);
+  run(w0, 1500, () => { w0.events.length = 0; });
+  let ms = 0;
+  for (let flip = 0; flip <= 800; flip += 5) {
+    const t = buildSpace(), w = new World(t, NORMAL), f = t.flippers[2], b = { ...cradled, inside: new Set(cradled.inside) };
+    f.angle = f.up; w.balls.push(b);
+    let docked = false;
+    for (let i = 0; i < 3000 && !docked && b.y < t.H + 30; i++) {
+      if (i === flip) f.pressed = true;
+      if (i === flip + 200) f.pressed = false;
+      w.step();
+      docked = w.events.some(e => e.obj.id === 'dock');
+      w.events.length = 0;
+    }
+    if (docked) ms += 5;
+  }
+  assert.ok(ms >= 40, `the dock's window is only ${ms} ms`);
+});
+
+test('Space: a soft launch comes down onto the upper flipper; a full one goes round the arch the other way from the orbit', () => {
+  // The skill shot: launched softly with the right button held, the ball comes down the feed lane onto the raised flipper.
+  const launch = (pull, held) => {
+    const t = buildSpace(), w = new World(t, NORMAL), p = t.plunger, f = t.flippers[2];
+    const b = makeBall((p.x0 + p.x1) / 2, p.y - BALL_R); w.balls.push(b);
+    p.pull = pull; p.firing = true; p.fireSpeed = NORMAL.launchMin + (NORMAL.launchMax - NORMAL.launchMin) * Math.pow(pull, 0.9);
+    f.pressed = held;
+    let touched = false;
+    const orbit = [];
+    run(w, 3000, () => {
+      const { px, py, tx, ty } = flipperEnds(f), q = closestOnSeg(b.x, b.y, px, py, tx, ty);
+      if (Math.hypot(b.x - q.x, b.y - q.y) < BALL_R + f.r0 + (f.r1 - f.r0) * q.t + 0.5) touched = true;
+      for (const e of w.events) if (e.obj.id === 'orbit') orbit.push(e.dir);
+      w.events.length = 0;
+    });
+    return { touched, orbit };
+  };
+  assert.ok(launch(0.25, true).touched, 'a soft launch missed the upper flipper');
+  const { orbit } = launch(1, false);
+  assert.ok(orbit.length && orbit.every(d => d === 1), `a full launch crossed the orbit ${orbit}`);
+});
+
+test('Space: a ball coming down the wire passes over a ball on the playfield under it', () => {
+  const play = both => {
+    const w = new World(buildSpace(), NORMAL), under = makeBall(71, 560), over = makeBall(71, 420);
+    over.level = 1; over.vy = over.wy = 1000;
+    w.balls.push(under);
+    if (both) w.balls.push(over);
+    let closest = Infinity;
+    run(w, 400, () => { closest = Math.min(closest, Math.hypot(over.x - under.x, over.y - under.y)); w.events.length = 0; });
+    return { under, over, closest };
+  };
+  const both = play(true), alone = play(false);
+  assert.ok(both.closest < BALL_R, 'the ball on the wire never passed over the other');
+  assert.equal(both.over.level, 0, 'it came off the end of the wire');
+  assert.deepEqual([both.under.x, both.under.y], [alone.under.x, alone.under.y], 'the ball on the playfield was knocked');
+});
+
+// Space's rules, fed the events the physics would send.
+function spaceGame(settings = {}) {
+  const g = new Space({ ...NORMAL, ...settings });
+  g.start('play');
+  g.state = 'live';
+  return g;
+}
+const cross = (g, id, ball, dir = -1) => g.event({ type: 'cross', obj: g.table.sensors.find(s => s.id === id), ball, dir, speed: 1000 });
+const rampShot = (g, ball) => { cross(g, 'rampIn', ball); cross(g, 'rampOut', ball, 1); };
+const intoDock = (g, ball) => g.event({ type: 'enter', obj: g.table.dock, ball, speed: 600 });
+// A ramp and the dock lock the first ball; another ramp and the dock start multiball with the second.
+function startMultiball(g) {
+  const first = g.world.balls[0];
+  rampShot(g, first); intoDock(g, first);
+  const second = g.world.balls.find(b => b !== first);
+  g.state = 'live';
+  rampShot(g, second); intoDock(g, second);
+  return [first, second];
+}
+// Plays on for a few seconds of real time.
+const playOn = (g, secs) => { for (let f = 0; f < secs * 60; f++) { for (let i = 0; i < 13; i++) g.world.step(); g.update(1 / 60); } };
+
+test('Space: a ramp lights the lock, the dock locks the ball and serves another, and a second lock starts multiball', () => {
+  const g = spaceGame(), l = g.lamps, first = g.world.balls[0];
+  g.lamps.skill = false;
+  const before = g.score;
+  rampShot(g, first);
+  assert.ok(l.lockLit, 'the lock is lit');
+  assert.equal(g.score - before, SPACE.ramp);
+  intoDock(g, first);
+  assert.ok(first.locked && first.held.until === Infinity, 'the ball is locked');
+  assert.deepEqual([first.x, first.y], [g.table.lockSpot.x, g.table.lockSpot.y]);
+  assert.equal(g.state, 'lane', 'another ball is served');
+  assert.equal(g.inPlay(), 1);
+  const second = g.world.balls.find(b => b !== first);
+  g.state = 'live';
+  rampShot(g, second); intoDock(g, second);
+  assert.ok(l.multiball && l.jackpotLit, 'multiball, with the jackpot lit');
+  assert.ok(!first.locked && first.level === 1, 'the locked ball goes up onto the ramp');
+  assert.equal(g.inPlay(), 2);
+  assert.ok(Math.abs(g.saveUntil - (g.time + g.wsecs(10))) < 1e-9, 'ten seconds of ball save');
+});
+
+test('Space: in multiball the ramp scores the jackpot and the dock lights it again; it ends with one ball left after the ball save', () => {
+  const g = spaceGame(), l = g.lamps, [first] = startMultiball(g);
+  const before = g.score, jackpot = g.jackpot;
+  assert.equal(jackpot, SPACE.jackpot + 2 * SPACE.jackpotStep, 'each ramp before multiball raised it');
+  rampShot(g, first);
+  assert.equal(g.score - before, SPACE.ramp + jackpot);
+  assert.ok(!l.jackpotLit);
+  intoDock(g, first);
+  assert.ok(l.jackpotLit, 'the dock lights it again');
+  // A ball lost in the ball save comes straight back.
+  first.held = null; first.y = g.table.H + 100;
+  g.update(1 / 60);
+  assert.equal(g.inPlay(), 2);
+  assert.ok(g.table.plunger.firing, 'the machine plunges another');
+  // After it, losing one ends multiball and the jackpot goes back to where it started.
+  g.saveUntil = 0;
+  g.world.balls.find(b => !b.held).y = g.table.H + 100;
+  g.update(1 / 60); g.update(1 / 60);
+  assert.equal(g.inPlay(), 1);
+  assert.equal(g.state, 'live');
+  assert.ok(!l.multiball && !l.jackpotLit);
+  assert.equal(g.jackpot, SPACE.jackpot);
+});
+
+test('Space: a locked ball stays locked when the ball in play drains', () => {
+  const g = spaceGame({ ballSave: 0 }), first = g.world.balls[0];
+  rampShot(g, first); intoDock(g, first);
+  const second = g.world.balls.find(b => b !== first);
+  g.state = 'live'; second.x = 243; second.y = 1100;
+  playOn(g, 5);
+  assert.equal(g.ballNo, 2);
+  assert.equal(g.state, 'lane');
+  assert.ok(g.world.balls.includes(first) && first.locked, 'the locked ball is still there');
+});
+
+test('Space: a ball the dock lifts onto the ramp is not a ramp shot', () => {
+  const g = spaceGame(), b = g.world.balls[0];
+  intoDock(g, b);
+  let off = false;
+  for (let f = 0; f < 3 * 60 && !off; f++) {
+    for (let i = 0; i < 13; i++) g.world.step();
+    g.update(1 / 60);
+    off = !b.level && b.y > 800;
+  }
+  assert.ok(off, 'the ball came down the wire');
+  assert.equal(g.stats.ramps, 0);
+  assert.equal(g.counts.ramps, 0);
+});
+
+test('Space: the skill shot pays only before anything else scores', () => {
+  let g = spaceGame(), before = g.score;
+  intoDock(g, g.world.balls[0]);
+  assert.equal(g.score - before, SPACE.skill + SPACE.dock);
+  g = spaceGame();
+  g.event({ type: 'kick', obj: g.table.bumpers[0], ball: g.world.balls[0] });
+  before = g.score;
+  intoDock(g, g.world.balls[0]);
+  assert.equal(g.score - before, SPACE.dock);
+});
+
+test('Space: eight ramps light the extra ball, and the orbit collects it', () => {
+  const g = spaceGame(), b = g.world.balls[0];
+  for (let i = 0; i < 8; i++) rampShot(g, b);
+  assert.ok(g.lamps.extraBallLit);
+  cross(g, 'orbit', b, 1); // a plunge, going round the other way
+  assert.ok(g.lamps.extraBallLit);
+  cross(g, 'orbit', b, -1);
+  assert.ok(g.lamps.shootAgain && !g.lamps.extraBallLit);
+  assert.equal(g.extraBalls, 1);
+});
+
+test('Space: the bonus counts the ramps and orbits of the ball, times the multiplier', () => {
+  const g = spaceGame({ ballSave: 0 }), b = g.world.balls[0];
+  g.counts = { ramps: 3, orbits: 2 }; g.lamps.mult = 3;
+  const before = g.score;
+  b.x = 243; b.y = 1100;
+  playOn(g, 5);
+  assert.equal(g.score - before, (3 * SPACE.bonusRamp + 2 * SPACE.bonusOrbit) * 3);
+  assert.equal(g.ballNo, 2);
+});
+
+test('Space: a tilt ends the ball with no bonus: in multiball no ball comes back, and a locked ball stays locked', () => {
+  let g = spaceGame({ ballSave: 0 });
+  const [a, b] = startMultiball(g);
+  g.counts.ramps = 4;
+  g.tilt();
+  const before = g.score;
+  a.held = b.held = null;
+  a.y = g.table.H + 100;
+  g.update(1 / 60);
+  assert.equal(g.inPlay(), 1, 'a ball lost in the ball save after a tilt is not given back');
+  b.y = g.table.H + 100;
+  playOn(g, 5);
+  assert.equal(g.score, before);
+  assert.equal(g.ballNo, 2);
+  assert.ok(!g.lamps.multiball);
+  g = spaceGame({ ballSave: 0 });
+  const first = g.world.balls[0];
+  rampShot(g, first); intoDock(g, first);
+  const second = g.world.balls.find(x => x !== first);
+  g.state = 'live'; g.counts.ramps = 4;
+  g.tilt();
+  const score = g.score;
+  second.y = g.table.H + 100;
+  playOn(g, 5);
+  assert.equal(g.score, score);
+  assert.equal(g.ballNo, 2);
+  assert.ok(g.world.balls.includes(first) && first.locked, 'the locked ball is still there');
 });

@@ -2,11 +2,12 @@
 // Anything the person saves lives in localStorage, not here.
 // Network first, so a new version shows up as soon as you're online.
 
-const CACHE = 'tilt-v2'; // bump the number when the file list changes
+const CACHE = 'tilt-v3'; // bump the number when the file list changes
 const SHELL = [
   './', 'index.html', 'icon.svg', 'manifest.webmanifest', 'css/tilt.css', 'fonts/bungee.woff2', 'fonts/figtree.woff2',
   'js/main.js', 'js/game.js', 'js/physics.js', 'js/render.js', 'js/sound.js', 'js/settings.js', 'js/tables.js',
   'js/tables/classic/index.js', 'js/tables/classic/layout.js', 'js/tables/classic/rules.js', 'js/tables/classic/draw.js', 'js/tables/classic/skins.js',
+  'js/tables/space/index.js', 'js/tables/space/layout.js', 'js/tables/space/rules.js', 'js/tables/space/draw.js', 'js/tables/space/skins.js',
 ];
 
 self.addEventListener('install', e => {
