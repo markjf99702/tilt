@@ -2,7 +2,7 @@
 // the artwork behind everything and the sounds' character. The geometry never changes, so every skin
 // plays the same.
 
-import { W, H, PF_RIGHT, MID } from './table.js';
+import { W, PF_RIGHT, MID } from './layout.js';
 
 export const SKINS = {
   classic: {
@@ -84,5 +84,3 @@ export function star(ctx, x, y, R, r, points = 5) {
   ctx.closePath();
   ctx.fill();
 }
-
-export { W, H };

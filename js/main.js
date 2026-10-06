@@ -1,24 +1,24 @@
 // Tilt: wires the table, the rules, the drawing and the sound to the page, and runs the clock.
 // The physics takes fixed thousandth-of-a-second steps, so it plays the same on a 60 Hz laptop and a 120 Hz phone.
 
-import { Game } from './game.js';
 import { STEP } from './physics.js';
 import { Renderer } from './render.js';
-import { SKINS } from './skins.js';
 import { NORMAL } from './settings.js';
 import { play, unlock, setSound } from './sound.js';
-import { PF_RIGHT, H } from './table.js';
+import { TABLES } from './tables.js';
 
 const $ = id => document.getElementById(id);
 const KEY = 'tilt.v1';
 const store = load();
+const table = TABLES.classic; // the only table so far
 const renderer = new Renderer($('table'));
-const skin = SKINS[store.skin] || SKINS.classic;
+renderer.setTable(table);
+const skin = table.skins[store.skin] || Object.values(table.skins)[0];
 renderer.setSkin(skin);
 setSound(store.sound !== false);
 
 let msgUntil = 0, msgText = '';
-const game = new Game({ ...NORMAL }, {
+const game = new table.Game({ ...NORMAL }, {
   sound: (n, o) => play(n, o),
   show: (text, secs) => { msgText = text; msgUntil = performance.now() + secs * 1000; },
   over: g => gameOver(g),
@@ -36,7 +36,7 @@ function save() {
 const fmt = n => n.toLocaleString('en-US');
 
 function showBest() {
-  const top = (store.scores || [])[0];
+  const top = (store[table.scoresKey] || [])[0];
   $('bestLine').textContent = top ? `Best: ${fmt(top.score)}` : '';
 }
 showBest();
@@ -47,9 +47,9 @@ function resize() {
   renderer.resize(r.width, r.height, Math.min(2.5, window.devicePixelRatio || 1));
   // The Launch button sits on the apron, just left of the shooter lane, so it never hides the ball.
   const b = $('launch'), s = renderer.scale;
-  const edge = renderer.ox + PF_RIGHT * s;
+  const edge = renderer.ox + game.table.plunger.x0 * s;
   b.style.right = Math.max(4, r.width - edge + 4) + 'px';
-  b.style.bottom = Math.max(6, r.height - (renderer.oy + H * s) + 6) + 'px';
+  b.style.bottom = Math.max(6, r.height - (renderer.oy + table.H * s) + 6) + 'px';
 }
 window.addEventListener('resize', resize);
 resize();
@@ -173,17 +173,17 @@ function toTitle() {
 function gameOver(g) {
   const score = g.score;
   game.mode = 'over';
-  const list = store.scores || [];
+  const list = store[table.scoresKey] || [];
   const entry = { score, date: new Date().toISOString().slice(0, 10) };
   list.push(entry);
   list.sort((a, b) => b.score - a.score);
-  store.scores = list.slice(0, 5);
+  store[table.scoresKey] = list.slice(0, 5);
   save();
-  const rank = store.scores.indexOf(entry);
+  const rank = store[table.scoresKey].indexOf(entry);
   $('final').textContent = fmt(score);
   $('overNote').textContent = rank === 0 && list.length > 1 ? 'A new high score.' : rank >= 0 ? `Number ${rank + 1} on your list.` : '';
   $('scores').innerHTML = '';
-  store.scores.forEach(s => {
+  store[table.scoresKey].forEach(s => {
     const li = document.createElement('li');
     if (s === entry) li.className = 'me';
     li.innerHTML = `<span>${fmt(s.score)}</span> <small>${s.date.slice(5).replace('-', '/')}</small>`;
@@ -219,7 +219,7 @@ function hud(now) {
     if (msg) d.textContent = msg; else { d.innerHTML = '<span id="score"></span>'; shownScore = -1; }
   }
   if (!msg) {
-    const s = game.mode === 'play' || game.mode === 'over' ? game.score : (store.scores?.[0]?.score ?? 0);
+    const s = game.mode === 'play' || game.mode === 'over' ? game.score : (store[table.scoresKey]?.[0]?.score ?? 0);
     if (s !== shownScore) { shownScore = s; $('score').textContent = fmt(s); }
   }
   const ball = game.mode === 'play' ? `Ball ${game.ballNo}` + (game.extraBalls > 0 ? '+' : '') : game.mode === 'over' ? 'Game over' : 'Best';

@@ -1,11 +1,14 @@
 // Plays many seeded games with the demo autopilot and reports how balls drain and how fast they move,
-// so a change to the table or the physics can be judged by numbers as well as by feel.
-//   node tools/tune.mjs [games=60]
+// so a change to a table or the physics can be judged by numbers as well as by feel.
+//   node tools/tune.mjs [games=60] [table=classic]
 // The autopilot flips whenever the ball comes down to a flipper, a little late at random, like a fair player.
-import { Game } from '../js/game.js';
+// Drains are told apart by the table's 'outlane' and 'inlane' rollovers (side 1 is the left).
+import { TABLES } from '../js/tables.js';
 import { NORMAL } from '../js/settings.js';
 
 const GAMES = Number(process.argv[2]) || 60;
+const table = TABLES[process.argv[3] || 'classic'];
+if (!table) { console.error(`No table "${process.argv[3]}". Tables: ${Object.keys(TABLES).join(', ')}`); process.exit(1); }
 const FRAME = 1 / 60;
 
 function seed(n) {
@@ -22,7 +25,7 @@ let liveSecs = 0, score = 0, sideWallSecs = 0;
 for (let gi = 0; gi < GAMES; gi++) {
   seed(1000 + gi);
   let over = false;
-  const g = new Game({ ...NORMAL, ballSave: 0 }, { over: () => { over = true; } });
+  const g = new table.Game({ ...NORMAL, ballSave: 0 }, { over: () => { over = true; } });
   g.start('play');
   const scale = g.settings.timeScale ?? 1;
   let lastOutlane = null, ballStart = null;
@@ -32,7 +35,7 @@ for (let gi = 0; gi < GAMES; gi++) {
     for (const e of g.world.events) {
       if (e.type === 'enter' && e.obj.id === 'outlane') lastOutlane = e.obj.side === 1 ? 'leftOutlane' : 'rightOutlane';
       if (e.type === 'enter' && e.obj.id === 'inlane') lastOutlane = null;
-      if (e.type === 'kick' || (e.type === 'hit' && e.obj.kind !== 'rail')) { if (e.ball.y < 760) lastOutlane = null; }
+      if (e.type === 'kick' || (e.type === 'hit' && e.obj.kind !== 'rail')) { if (e.ball.y < table.checks.outlaneTop) lastOutlane = null; }
     }
     if (ballStart != null && g.state === 'live' && g.time - ballStart > 120 * scale) {
       timeouts++;
@@ -53,7 +56,7 @@ for (let gi = 0; gi < GAMES; gi++) {
       liveSecs += FRAME;
       // Speed as the player sees it: table millimetres per second of real time.
       speeds.push(Math.hypot(b.vx, b.vy) * scale);
-      if (b.x < 30 || (b.x > 456 && b.x < 486)) sideWallSecs += FRAME;
+      if (table.checks.sideWall(b)) sideWallSecs += FRAME;
     }
   }
   score += g.score;
