@@ -198,7 +198,7 @@ export class Game {
     }
     for (const f of this.table.flippers) {
       const near = this.world.balls.some(b => {
-        if (b.held) return false;
+        if (b.held || b.level !== (f.level || 0)) return false;
         const dx = b.x - f.x, dy = b.y - f.y;
         const along = f.side === 'left' ? dx : -dx;
         return along > 10 && along < f.len + 15 && dy > -70 && dy < 40 && b.vy > -200;

@@ -6,6 +6,10 @@
 // circles that never move; flippers are tapered capsules that swing about a pivot and push the ball with
 // the speed of the point it touches. Things that only notice the ball (rollovers, the spinner, the saucer)
 // report what happened as events for the rules to score.
+//
+// A ball can also be up on a ramp. Walls, posts, sensors and flippers belong to a level (the playfield, 0, unless
+// they say otherwise); a ball only meets those on its own level, and a line with a level to go to lifts it onto a
+// ramp or lets it down.
 
 export const BALL_R = 13.5;
 export const STEP = 1 / 1000;
@@ -19,8 +23,9 @@ const CREEP = 30;       // mm/s: rubbing against a wall slows a ball no further 
 // skids, and friction with the playfield pulls the two together again: a solid sphere ends up rolling at 5/7
 // of its skid speed plus 2/7 of its spin's. That's where a real ball's pace goes: a kicked ball skids off a
 // good quarter of its speed, and a rolling ball only speeds up down the slope at 5/7 of g sin(slope).
+// The ball is on the playfield (level 0) unless it's up on a ramp; z is its height there, for drawing.
 export function makeBall(x, y) {
-  return { x, y, vx: 0, vy: 0, wx: 0, wy: 0, held: null, inside: new Set(), id: Math.random().toString(36).slice(2, 8), lastHit: 0 };
+  return { x, y, vx: 0, vy: 0, wx: 0, wy: 0, held: null, level: 0, z: 0, inside: new Set(), id: Math.random().toString(36).slice(2, 8), lastHit: 0 };
 }
 
 // Skid friction: moves velocity and spin towards each other by up to f (mm/s) this step.
@@ -63,6 +68,7 @@ export class World {
     for (const b of this.balls) {
       if (b.held) continue;
       b.vy += this.gy * dt;
+      if (b.level) this.climb(b, dt);
       roll(b, this.skid);
       const sp = Math.hypot(b.vx, b.vy);
       if (sp > MAX_SPEED) { b.vx *= MAX_SPEED / sp; b.vy *= MAX_SPEED / sp; }
@@ -76,10 +82,35 @@ export class World {
     for (let i = 0; i < this.balls.length; i++) for (let j = i + 1; j < this.balls.length; j++) ballBall(this.balls[i], this.balls[j]);
   }
 
+  // A ball up on a ramp feels the ramp's own slope as well as the table's: held back while it climbs, sped up on
+  // the way down. The rails rub too, but like any friction they never quite stop it (see CREEP).
+  // A table's ramps are [{ level, path: [[x, y, z], ...], drag }]: z is the height in mm, drag in mm/s².
+  climb(b, dt) {
+    let best = null, bd = Infinity;
+    for (const r of this.t.ramps || []) {
+      if (r.level !== b.level) continue;
+      for (let i = 0; i < r.path.length - 1; i++) {
+        const [ax, ay, az] = r.path[i], [bx, by, bz] = r.path[i + 1];
+        const q = closestOnSeg(b.x, b.y, ax, ay, bx, by), d = (b.x - q.x) ** 2 + (b.y - q.y) ** 2;
+        if (d < bd) { bd = d; best = { r, ax, ay, az, bx, by, bz, t: q.t }; }
+      }
+    }
+    if (!best) return;
+    const { r, ax, ay, az, bx, by, bz, t } = best, len = Math.hypot(bx - ax, by - ay);
+    b.z = az + (bz - az) * t;
+    const pull = 9810 * (bz - az) / Math.hypot(len, bz - az) * dt;
+    b.vx -= (bx - ax) / len * pull; b.vy -= (by - ay) / len * pull;
+    const v = Math.hypot(b.vx, b.vy);
+    if (r.drag && v > CREEP) {
+      const k = Math.max(CREEP, v - r.drag * dt) / v;
+      b.vx *= k; b.vy *= k; b.wx *= k; b.wy *= k;
+    }
+  }
+
   collide(b) {
     const t = this.t;
     for (const w of t.walls) {
-      if (w.off) continue;
+      if (w.off || (w.level || 0) !== b.level) continue;
       const q = closestOnSeg(b.x, b.y, w.ax, w.ay, w.bx, w.by);
       let dx = b.x - q.x, dy = b.y - q.y;
       const d2 = dx * dx + dy * dy, min = BALL_R + w.r;
@@ -96,7 +127,7 @@ export class World {
       else if (vn > 60) this.emit('hit', { obj: w, ball: b, speed: vn });
     }
     for (const c of t.circles) {
-      if (c.off) continue;
+      if (c.off || (c.level || 0) !== b.level) continue;
       const dx = b.x - c.x, dy = b.y - c.y, min = BALL_R + c.r;
       const d2 = dx * dx + dy * dy;
       if (d2 >= min * min) continue;
@@ -107,8 +138,8 @@ export class World {
       if (c.kick) this.kick(b, c, nx, ny, vn);
       else if (vn > 250) this.emit('hit', { obj: c, ball: b, speed: vn });
     }
-    for (const f of t.flippers) flipperContact(b, f, this);
-    if (t.plunger) plungerContact(b, t.plunger);
+    for (const f of t.flippers) if ((f.level || 0) === b.level) flipperContact(b, f, this);
+    if (t.plunger && !b.level) plungerContact(b, t.plunger);
   }
 
   // Slingshots and pop bumpers fire whenever the ball touches them hard enough, and throw it away.
@@ -124,15 +155,22 @@ export class World {
   }
 
   sense(b, px, py) {
+    // The level the ball started the step on: a line that moves it to another doesn't let the next line see it
+    // there this step (so a lift up and a lift down drawn on the same spot don't both fire).
+    const level = b.level;
     for (const s of this.t.sensors) {
-      if (s.off) continue;
+      if (s.off || (s.level || 0) !== level) continue;
       if (s.kind === 'line') {
         // Crossed the line between the last step and this one?
         const s0 = (px - s.ax) * s.nx + (py - s.ay) * s.ny, s1 = (b.x - s.ax) * s.nx + (b.y - s.ay) * s.ny;
         if ((s0 < 0) === (s1 < 0)) continue;
         const along = ((b.x - s.ax) * s.tx + (b.y - s.ay) * s.ty);
         if (along < -2 || along > s.len + 2) continue;
-        this.emit('cross', { obj: s, ball: b, dir: s1 < 0 ? -1 : 1, speed: Math.abs(b.vx * s.nx + b.vy * s.ny) });
+        const dir = s1 < 0 ? -1 : 1;
+        this.emit('cross', { obj: s, ball: b, dir, speed: Math.abs(b.vx * s.nx + b.vy * s.ny) });
+        // A lift: crossed its way, it takes the ball up onto a ramp or lets it down. (Drawn left to right, like
+        // laneExit, dir -1 is up the table.)
+        if (s.to !== undefined && dir === s.dir) { b.level = s.to; b.z = 0; b.inside.clear(); }
       } else {
         const inside = (b.x - s.x) ** 2 + (b.y - s.y) ** 2 < s.r * s.r;
         if (inside && !b.inside.has(s)) {
@@ -176,7 +214,7 @@ function bounce(b, nx, ny, sx, sy, e, mu) {
 }
 
 function ballBall(a, b) {
-  if (a.held || b.held) return;
+  if (a.held || b.held || a.level !== b.level) return;
   const dx = b.x - a.x, dy = b.y - a.y, d2 = dx * dx + dy * dy, min = BALL_R * 2;
   if (d2 >= min * min || d2 === 0) return;
   const d = Math.sqrt(d2), nx = dx / d, ny = dy / d, push = (min - d) / 2;

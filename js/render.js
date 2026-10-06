@@ -164,17 +164,19 @@ export function drawFlipper(c, f, s) {
   c.restore();
 }
 
+// A ball up on a ramp (b.z mm above the playfield) is nearer the glass: a little larger, its shadow further off.
 export function drawBall(c, b) {
+  const z = b.z || 0, k = 1 + z / 350, r = BALL_R * k;
   c.save();
   c.fillStyle = 'rgba(0,0,0,0.4)';
-  c.beginPath(); c.arc(b.x + 3, b.y + 5, BALL_R, 0, TAU); c.fill();
-  const g = c.createRadialGradient(b.x - 4.5, b.y - 5, 1, b.x, b.y, BALL_R);
+  c.beginPath(); c.arc(b.x + 3 + z * 0.12, b.y + 5 + z * 0.18, r, 0, TAU); c.fill();
+  const g = c.createRadialGradient(b.x - 4.5 * k, b.y - 5 * k, k, b.x, b.y, r);
   g.addColorStop(0, '#ffffff'); g.addColorStop(0.25, '#e6e9ee'); g.addColorStop(0.7, '#8b929c'); g.addColorStop(1, '#3d434c');
   c.fillStyle = g;
-  c.beginPath(); c.arc(b.x, b.y, BALL_R, 0, TAU); c.fill();
+  c.beginPath(); c.arc(b.x, b.y, r, 0, TAU); c.fill();
   // Reflections of the playfield lamps.
   c.fillStyle = 'rgba(255,200,120,0.35)';
-  c.beginPath(); c.ellipse(b.x + 3, b.y + 6, 5, 2.2, 0, 0, TAU); c.fill();
+  c.beginPath(); c.ellipse(b.x + 3 * k, b.y + 6 * k, 5 * k, 2.2 * k, 0, 0, TAU); c.fill();
   c.restore();
 }
 
@@ -192,13 +194,18 @@ export function drawPlunger(c, t, s) {
   c.restore();
 }
 
+// ?debug: the playfield's outlines in green and a ramp's (any other level) in orange; sensors in magenta, lifts in yellow.
 function drawDebug(c, t) {
   c.save();
-  c.strokeStyle = 'lime'; c.lineWidth = 1;
-  for (const w of t.walls) { if (w.off) continue; c.beginPath(); c.moveTo(w.ax, w.ay); c.lineTo(w.bx, w.by); c.stroke(); }
-  for (const p of t.circles) { c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.stroke(); }
-  c.strokeStyle = 'magenta';
+  c.lineWidth = 1;
+  for (const w of t.walls) {
+    if (w.off) continue;
+    c.strokeStyle = w.level ? 'orange' : 'lime';
+    c.beginPath(); c.moveTo(w.ax, w.ay); c.lineTo(w.bx, w.by); c.stroke();
+  }
+  for (const p of t.circles) { c.strokeStyle = p.level ? 'orange' : 'lime'; c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.stroke(); }
   for (const s of t.sensors) {
+    c.strokeStyle = s.to !== undefined ? 'yellow' : 'magenta';
     c.beginPath();
     if (s.kind === 'line') { c.moveTo(s.ax, s.ay); c.lineTo(s.bx, s.by); } else c.arc(s.x, s.y, s.r, 0, TAU);
     c.stroke();

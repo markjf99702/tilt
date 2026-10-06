@@ -84,6 +84,63 @@ for (const table of Object.values(TABLES)) {
   });
 }
 
+// The machine's own parts, on a small test table: a box with a shooter lane down the right, and a ramp straight up
+// the middle that climbs 60 mm, over a short wall on the playfield. A lift line at the ramp's foot takes a ball
+// going up the table onto it (level 1), and lets it back down when it rolls out the way it came.
+function testTable() {
+  const walls = [], sensors = [];
+  const seg = (ax, ay, bx, by, o = {}) => { const w = { ax, ay, bx, by, r: 3, e: 0.3, ...o }; walls.push(w); return w; };
+  const line = (ax, ay, bx, by, o) => {
+    const len = Math.hypot(bx - ax, by - ay), tx = (bx - ax) / len, ty = (by - ay) / len;
+    sensors.push({ kind: 'line', ax, ay, bx, by, len, tx, ty, nx: -ty, ny: tx, ...o });
+  };
+  seg(0, 0, 300, 0); seg(0, 0, 0, 680); seg(300, 0, 300, 680);
+  seg(260, 200, 260, 680);
+  line(260, 200, 300, 200, { id: 'laneExit' });
+  const plunger = { x0: 260, x1: 300, y: 620, travel: 46, pull: 0, pulling: false, firing: false, fireSpeed: 0, pullTime: 0.9 };
+  seg(100, 400, 100, 100, { level: 1 }); seg(150, 400, 150, 100, { level: 1 }); seg(100, 100, 150, 100, { level: 1 });
+  seg(105, 250, 145, 250);
+  line(100, 400, 150, 400, { id: 'up', to: 1, dir: -1 });
+  line(100, 400, 150, 400, { id: 'down', level: 1, to: 0, dir: 1 });
+  const ramps = [{ level: 1, path: [[125, 400, 0], [125, 100, 60]], drag: 400 }];
+  return { W: 300, H: 680, walls, circles: [], sensors, flippers: [], plunger, ramps };
+}
+
+test('a ramp carries a ball over a wall on the playfield, and lets it back down', () => {
+  // On the playfield, the wall stops it.
+  let w = new World(testTable(), NORMAL), b = makeBall(125, 330);
+  b.vy = b.wy = -900; w.balls.push(b);
+  let top = Infinity;
+  run(w, 600, () => { top = Math.min(top, b.y); w.events.length = 0; });
+  assert.ok(top > 250, `the ball went through the wall, up to y ${top.toFixed(0)}`);
+  // Up the ramp, it passes over the wall, then rolls back down and off.
+  w = new World(testTable(), NORMAL); b = makeBall(125, 470);
+  b.vy = b.wy = -1500; w.balls.push(b);
+  const levels = [0];
+  top = Infinity;
+  run(w, 3000, () => { top = Math.min(top, b.y); if (b.level !== levels.at(-1)) levels.push(b.level); w.events.length = 0; });
+  assert.ok(top < 230, `it only got up to y ${top.toFixed(0)}`);
+  assert.deepEqual(levels, [0, 1, 0]);
+  assert.ok(b.y > 400 && b.z === 0, `it ended at y ${b.y.toFixed(0)}, ${b.z} mm up`);
+});
+
+test('nothing holds a ball still on a ramp', () => {
+  for (const y of [120, 200, 300, 380]) {
+    const w = new World(testTable(), NORMAL), b = makeBall(125, y);
+    b.level = 1; w.balls.push(b);
+    let ms = 0;
+    while (b.level && ms < 3000) { w.step(); w.events.length = 0; ms++; }
+    assert.equal(b.level, 0, `a ball let go at y ${y} was still on the ramp after 3 s`);
+  }
+});
+
+test('balls on different levels pass through each other', () => {
+  const w = new World(testTable(), NORMAL), a = makeBall(125, 300), b = makeBall(130, 300);
+  b.level = 1; w.balls.push(a, b);
+  w.step();
+  assert.ok(Math.abs(a.x - 125) < 0.01 && Math.abs(b.x - 130) < 0.01, 'they pushed each other apart');
+});
+
 // Classic's own tests.
 test('a full plunge goes round the arch and down the left orbit through the spinner', () => {
   const t = buildTable(), w = new World(t, NORMAL);
