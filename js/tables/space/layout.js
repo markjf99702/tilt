@@ -66,8 +66,10 @@ export function buildTable() {
     post(x, y, 24, { e: 0.5, kind: 'bumper', i, kick: { speed: 1100, min: 0 } }));
 
   // ---- the feed lane and the upper flipper ----
-  // The rail across the foot of the lane rolls the ball onto the upper flipper's face, not its pivot.
-  chain([[444, 300], [428, 370], [428, 490]], { r: 4, e: 0.5, kind: 'guide' });
+  // The rail across the foot of the lane rolls the ball onto the upper flipper's face, not its pivot. The guide
+  // leans in a little towards the foot: two balls side by side there can't wedge, one held up against the guide
+  // by the other on the rail.
+  chain([[444, 300], [428, 370], [431, 490]], { r: 4, e: 0.5, kind: 'guide' });
   seg(452, 528, PF_RIGHT, 494, { r: 4, e: 0.3, kind: 'rail' });
 
   // ---- left orbit ----
@@ -128,6 +130,9 @@ export function buildTable() {
   // Rubber shoulders above the outlanes, as on Classic. The right one starts under the upper flipper.
   chain([[0, 602], [35, 734]], { r: 4, e: 0.5, kind: 'rubber' });
   chain([[474, 560], [452, 620], [457, 738]], { r: 4, e: 0.5, kind: 'rubber' });
+  // A ball the pops throw at the outside of the ramp's mouth glances off it down towards the right outlane. This
+  // post, under the upper flipper, turns it away towards the inlane.
+  post(412, 680, 6, { e: 0.6, kind: 'post' });
   const slings = [];
   for (const side of [1, -1]) {
     const X = x => (side === 1 ? x : mx(x));

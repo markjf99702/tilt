@@ -468,6 +468,16 @@ test('Space: held up, the upper flipper catches a ball coming down the feed lane
   }
 });
 
+test('Space: two balls in the feed lane don\'t wedge each other at its foot', () => {
+  // In multiball: one comes down against the guide onto another lower in the lane, with nobody flipping.
+  for (const [ay, by] of [[360, 420], [400, 460], [440, 480]]) {
+    const w = new World(buildSpace(), NORMAL), a = makeBall(446, ay), b = makeBall(470, by);
+    a.vy = a.wy = 600; w.balls.push(a, b);
+    run(w, 3000, () => { w.events.length = 0; });
+    assert.ok(a.y > 560 && b.y > 560, `they stuck at ${a.x.toFixed(0)}, ${a.y.toFixed(0)} and ${b.x.toFixed(0)}, ${b.y.toFixed(0)}`);
+  }
+});
+
 test('Space: a soft launch comes down onto the upper flipper; a full one goes round the arch the other way from the orbit', () => {
   // The skill shot: launched softly with the right button held, the ball comes down the feed lane and stays on the
   // raised flipper.
@@ -502,6 +512,26 @@ test('Space: a ball coming down the wire passes over a ball on the playfield und
   assert.ok(both.closest < BALL_R, 'the ball on the wire never passed over the other');
   assert.equal(both.over.level, 0, 'it came off the end of the wire');
   assert.deepEqual([both.under.x, both.under.y], [alone.under.x, alone.under.y], 'the ball on the playfield was knocked');
+});
+
+test('Space: balls glancing off the outside of the ramp\'s mouth are kept out of the right outlane', () => {
+  // Thrown down to the left from under the pops, as the bumpers throw them, with nobody flipping.
+  let glanced = 0, outlane = 0;
+  for (const [x, y] of [[310, 300], [330, 330], [350, 320]]) for (let deg = 105; deg <= 150; deg += 3) for (const v of [600, 800, 1000]) {
+    const w = new World(buildSpace(), NORMAL), b = makeBall(x, y);
+    b.vx = b.wx = Math.cos(deg * Math.PI / 180) * v; b.vy = b.wy = Math.sin(deg * Math.PI / 180) * v;
+    w.balls.push(b);
+    let mouth = false, out = false;
+    run(w, 4000, () => {
+      for (const e of w.events) {
+        if (e.type === 'hit' && e.obj.kind === 'ramp' && !b.level) mouth = true;
+        if (e.type === 'enter' && e.obj.id === 'outlane' && e.obj.side === -1) out = true;
+      }
+      w.events.length = 0;
+    });
+    if (mouth) { glanced++; if (out) outlane++; }
+  }
+  assert.ok(glanced > 50 && outlane <= 2, `${outlane} of the ${glanced} balls off the ramp's mouth went down the right outlane`);
 });
 
 // Space's rules, fed the events the physics would send.
