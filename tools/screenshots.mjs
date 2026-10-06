@@ -29,7 +29,7 @@ async function save(png, path) {
   await writeFile(join(root, path), Buffer.from(UPNG.encode(UPNG.toRGBA8(img), img.width, img.height, 256)));
 }
 
-async function open(viewport, scale) {
+async function open(viewport, scale, query = '') {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: scale, hasTouch: true, serviceWorkers: 'block' });
   const page = await ctx.newPage();
   await page.addInitScript(() => {
@@ -37,7 +37,7 @@ async function open(viewport, scale) {
     Math.random = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
     localStorage.setItem('tilt.v1', JSON.stringify({ scores: [{ score: 1284650, date: '2026-10-05' }] }));
   });
-  await page.goto(base);
+  await page.goto(base + query);
   await page.waitForFunction(() => window.tilt);
   await page.evaluate(() => document.fonts.ready);
   return page;
@@ -87,6 +87,29 @@ await card.setContent(`<style>
 </style><div class="l"><h1>Tilt</h1><p>A classic pinball table, in your pocket.</p></div><div class="r"><img src="data:image/png;base64,${shot}"></div>`);
 await card.evaluate(() => document.fonts.ready);
 await save(await card.screenshot(), 'og.png');
+
+// Space in a game: a ball locked in the dock under the ramp, the lock lit again, and the ball in play riding the
+// ramp's hairpin over it.
+const space = await open({ width: 390, height: 844 }, 2, '?table=space');
+await space.evaluate(async () => {
+  const { makeBall } = await import('./js/physics.js');
+  const t = window.tilt;
+  t.startGame();
+  const g = t.game, l = g.lamps, L = g.table.lockSpot, H = g.table.hairpin;
+  g.score = 362840; l.mult = 2; l.lanes = [true, false, false]; l.lockLit = true; l.planets = 3; l.skill = false;
+  const locked = g.world.balls[0];
+  locked.x = L.x; locked.y = L.y; locked.held = { until: Infinity }; locked.locked = true;
+  const a = 120 * Math.PI / 180, b = makeBall(H.x + Math.cos(a) * H.r, H.y - Math.sin(a) * H.r);
+  b.level = 1; b.z = H.z; g.world.balls.push(b);
+  g.state = 'live'; g.saveUntil = 0; g.saveArmed = false;
+  window.tilt.setPaused(true);
+  document.getElementById('pause').hidden = true;
+});
+// Let "Ball 1" go from the display so it shows the score. The arrows blink with the clock: take the picture while
+// they're lit, so it comes out the same each run.
+await space.waitForTimeout(1300);
+await space.waitForFunction(() => performance.now() % 800 < 200);
+await save(await space.screenshot(), 'docs/phone-space.png');
 
 await browser.close();
 server.close();

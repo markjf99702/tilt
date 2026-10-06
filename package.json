@@ -2,7 +2,7 @@
   "name": "tilt",
   "private": true,
   "type": "module",
-  "description": "A classic pinball table, in your pocket.",
+  "description": "Two pinball tables, in your pocket.",
   "scripts": {
     "test": "node --test test/unit.test.mjs && node test/e2e.mjs",
     "build": "node scripts/build.mjs"

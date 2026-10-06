@@ -2,12 +2,14 @@
 
 **Play it: [tilt.junkdrawer.works](https://tilt.junkdrawer.works/)**
 
-**A classic pinball table you can play on your phone.** It's laid out and scored like an early-80s solid-state machine: three top lanes, three pop bumpers, a kickout, a spinner orbit, standup targets and a bank of drop targets. The ball runs on real-ish physics, measured in millimetres on a table the size of a real playfield: it rolls, skids when it's kicked, and plays at three-quarter speed so it's easy to follow on a phone (the flippers stay full speed).
+**Two pinball tables you can play on your phone.** Classic is laid out and scored like an early-80s solid-state machine: three top lanes, three pop bumpers, a kickout, a spinner orbit, standup targets and a bank of drop targets. Space is an early-90s table: a ramp that carries the ball up and over the playfield, a lock under it for two-ball multiball, and a third flipper up the right side. Pick one on the title card. The ball runs on real-ish physics, measured in millimetres on a table the size of a real playfield: it rolls, skids when it's kicked, and plays at three-quarter speed so it's easy to follow on a phone (the flippers stay full speed).
 
 <p align="center">
-  <img src="docs/phone-title.png" alt="The title card over the Classic table, with a Start game button and the best score" width="250">
+  <img src="docs/phone-title.png" alt="The title card over the Classic table, with the two tables to pick from, a Start game button and the best score" width="240">
   &nbsp;
-  <img src="docs/phone-play.png" alt="A game in progress: the ball among the lit pop bumpers, lanes A and C lit, bonus 14 and a 3x multiplier lit" width="250">
+  <img src="docs/phone-play.png" alt="A game of Classic: the ball among the lit pop bumpers, lanes A and C lit, bonus 14 and a 3x multiplier lit" width="240">
+  &nbsp;
+  <img src="docs/phone-space.png" alt="A game of Space: one ball locked in the dock under the ramp, another riding the ramp over it, the lock lit and a 2x multiplier lit" width="240">
 </p>
 
 ## How it plays
@@ -15,12 +17,26 @@
 - **Flip** by tapping and holding the left or right half of the screen. On a keyboard: Z and / (or the Shift keys, or ← →).
 - **Launch** by holding the Launch button and letting go: the longer you hold, the harder the shot. Keyboard: hold Space or ↓.
 - **Nudge** with a quick swipe up, or ↑. Nudge too often and you get a Danger warning, then the machine tilts: the flippers go dead and you lose the bonus.
+- **The bonus** is counted, times the multiplier, when the ball drains. A ball that drains in the first few seconds is given back.
+- No account and no server. Each table keeps its own top five scores in your browser. It works offline and installs to a phone's home screen.
+
+### Classic
+
 - **Skill shot.** The flashing top lane is worth 25,000 if the plunge drops into it. The flippers move it left and right.
 - **Top lanes** A, B and C raise the bonus multiplier (up to 5×) and light the bumpers at 1,000 a pop.
 - **Standups** on the orbit rail light the spinner at 1,000 a spin.
 - **Drop targets** light an extra ball at the kickout in the middle; after that, a full bank is worth 25,000.
-- **The bonus** counts up as you hit things and is counted down, times the multiplier, when the ball drains. A ball that drains in the first few seconds is given back.
-- No account and no server. Your top five scores stay in your browser. It works offline and installs to a phone's home screen.
+- **The bonus** counts up as you hit things.
+
+### Space
+
+- **The ramp** is a shot for the left flipper. It climbs over the playfield, turns round a hairpin and comes back down a wire to the left flipper, for 10,000. It lights the lock and raises the jackpot.
+- **The upper flipper** works with the right one. Catch the ball on it and shoot the dock under the ramp: with the lock lit the ball is locked there and another is served. Light the lock again and shoot the dock for two-ball **multiball**.
+- **In multiball** the ramp scores the jackpot and the dock lights it again. The jackpot starts at 100,000 and each ramp made outside multiball adds 10,000, up to 250,000. Multiball starts with ten seconds of ball save.
+- **Skill shot.** Launch softly onto the upper flipper and shoot the dock for 25,000.
+- **Top lanes** U, F and O raise the bonus multiplier (up to 5×). The flippers move the lit lanes.
+- **Planets.** Each ramp lights one. All eight light an extra ball at the left orbit, once a game; after that they're worth 50,000.
+- **The bonus** is 2,000 for each ramp and 1,000 for each orbit made with that ball.
 
 ## Running it
 
@@ -44,6 +60,7 @@ To put it online with GitHub Pages: **Settings → Pages → Build and deploymen
 - `js/game.js`: the machine every table shares: serving balls, the flippers, ball save, tilt, extra balls, locks and multiball, the end of a ball and of the game, and the demo's autopilot.
 - `js/tables.js`: the list of tables. Each table is a folder in `js/tables/` with its own layout, rules, drawing and skins.
 - `js/tables/classic/`: the Classic table: `layout.js` (where everything is, in millimetres), `rules.js` (what everything scores, its lamps and bonus), `draw.js` (its playfield, lamps and toys) and `skins.js` (colours, names and artwork). `index.js` puts them together, with its rules for How to play.
+- `js/tables/space/`: the Space table, in the same five files. Its ramp, the dock and the lift that puts a ball back on the ramp are in `layout.js` and `rules.js`.
 - `js/settings.js`: the machine's adjustments (slope, game speed, flipper strength, ball save, tilt warnings), which difficulty levels will build on.
 - `js/render.js`: fits a table to the canvas and draws what every table has (rails, posts, flippers, the ball, the plunger); `js/sound.js`: every sound, made in the browser with Web Audio.
 - `js/main.js`: the page: controls, menus, the table picker, high scores (each table keeps its own) and the clock.
