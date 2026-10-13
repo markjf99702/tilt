@@ -1,10 +1,10 @@
 // Plays Tilt in Chromium through the real page:  node test/e2e.mjs  (needs Playwright)
-// Starts a game, launches with the Launch button, flips with touches on each half of the screen,
-// pauses, drains every ball, checks the high score survives a reload, that a link to a table that isn't
-// there opens the first, plays a game of Space and one of Haunted House (down to its basement and back) from the table
-// picker, ends a game from the menu as its last ball counts its bonus (it's saved once), dates a high score in the
-// player's own time zone, fits the backbox's longest messages on a 320 px phone, checks the screen slides between a
-// table's floors, and loads once more offline (sw.js must keep every file the page loads).
+// Checks a link's preview says what the title card says, starts a game, launches with the Launch button, flips with
+// touches on each half of the screen, pauses, drains every ball, checks the high score survives a reload, that a link
+// to a table that isn't there opens the first, plays a game of Space and one of Haunted House (down to its basement and
+// back) from the table picker, ends a game from the menu as its last ball counts its bonus (it's saved once), dates a
+// high score in the player's own time zone, fits the backbox's longest messages on a 320 px phone, checks the screen
+// slides between a table's floors, and loads once more offline (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -50,6 +50,11 @@ const peek = () => page.evaluate(() => { const g = window.tilt.game; return { mo
 assert.ok(await page.isVisible('#startBtn'));
 assert.equal((await peek()).mode, 'attract');
 assert.equal(await page.isVisible('#tables'), await page.locator('#tables input').count() > 1);
+// A link to it says what the title card says, in the preview's line and on its picture (og.png, which
+// tools/screenshots.mjs draws).
+const lede = await page.textContent('.lede');
+assert.equal(await page.getAttribute('meta[property="og:description"]', 'content'), lede, "the link preview's line says something else");
+assert.ok((await readFile(join(root, 'tools/screenshots.mjs'), 'utf8')).includes(`<p>${lede}</p>`), 'the link preview picture says something else');
 
 await page.tap('#startBtn');
 await page.waitForFunction(() => window.tilt.game.mode === 'play');

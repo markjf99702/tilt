@@ -81,10 +81,10 @@ await card.setContent(`<style>
   body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: radial-gradient(circle at 30% 40%, #1d3c80, #0a1636 70%); display: flex; }
   .l { flex: 1; padding: 0 0 0 90px; display: flex; flex-direction: column; justify-content: center; }
   h1 { margin: 0; font: 170px/0.9 Bungee; color: #ffa53a; text-shadow: 0 0 24px rgba(255,140,30,.5), 0 8px 0 #a33a10; }
-  p { margin: 34px 0 0; font: 500 40px/1.2 Figtree; color: #f6efe0; max-width: 520px; }
+  p { margin: 34px 0 0; font: 500 40px/1.2 Figtree; color: #f6efe0; max-width: 520px; text-wrap: balance; }
   .r { width: 470px; position: relative; overflow: hidden; }
   .r img { position: absolute; left: 20px; top: -40px; width: 440px; transform: rotate(4deg); box-shadow: 0 20px 60px rgba(0,0,0,.6); border-radius: 14px; }
-</style><div class="l"><h1>Tilt</h1><p>A classic pinball table, in your pocket.</p></div><div class="r"><img src="data:image/png;base64,${shot}"></div>`);
+</style><div class="l"><h1>Tilt</h1><p>Three pinball tables, in your pocket.</p></div><div class="r"><img src="data:image/png;base64,${shot}"></div>`);
 await card.evaluate(() => document.fonts.ready);
 await save(await card.screenshot(), 'og.png');
 
