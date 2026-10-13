@@ -3,8 +3,8 @@
 // pauses, drains every ball, checks the high score survives a reload, that a link to a table that isn't
 // there opens the first, plays a game of Space and one of Haunted House (down to its basement and back) from the table
 // picker, ends a game from the menu as its last ball counts its bonus (it's saved once), dates a high score in the
-// player's own time zone, checks the screen slides between a table's floors, and loads once more offline (sw.js must
-// keep every file the page loads).
+// player's own time zone, fits the backbox's longest messages on a 320 px phone, checks the screen slides between a
+// table's floors, and loads once more offline (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -220,6 +220,27 @@ await west.waitForSelector('#over:not([hidden])');
 assert.equal(await west.evaluate(() => window.tilt.store.scores[0].date), '2026-10-13');
 assert.equal(await west.textContent('#scores li.me small'), '10/13');
 await west.context().close();
+
+// On a 320 px phone the backbox display still fits the longest messages and an eight-digit score, end to end.
+const small = await freshPage({ viewport: { width: 320, height: 568 } });
+await small.goto(base);
+await small.waitForFunction(() => window.tilt);
+await small.evaluate(() => document.fonts.ready);
+await small.tap('#startBtn');
+const cut = await small.evaluate(async () => {
+  const d = document.getElementById('display'), g = window.tilt.game, cut = [];
+  const frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const fits = () => { const r = document.createRange(); r.selectNodeContents(d); return r.getBoundingClientRect().width <= d.clientWidth; };
+  for (const m of ['Skill shot 25,000', 'Extra ball is lit', 'Ramp for 250,000', 'Orbits 28 × 1,000', 'Ghosts 12 × 2,000', 'Bonus 54,000 × 5']) {
+    g.show(m, 30); await frames();
+    if (d.textContent !== m || !fits()) cut.push(m);
+  }
+  g.show('', 0); g.score = 12345670; await frames();
+  if (!fits()) cut.push(d.textContent);
+  return cut;
+});
+assert.deepEqual(cut, [], 'cut off at the ends of the display on a 320 px phone');
+await small.context().close();
 
 // The screen slides between a table's floors, down to the one the ball is on and back up: a made-up table with two,
 // the top one red and the one under it blue. Someone who asks for less motion gets a cut instead.

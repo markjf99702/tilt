@@ -35,16 +35,18 @@ body {
   background: linear-gradient(#0d0a08, #050403); border-bottom: 1px solid #2a1a0a;
 }
 .ball { font: 12px/1.1 var(--disp); color: var(--amber); opacity: .85; letter-spacing: .04em; }
+/* The display is the screen's width less 164 px. On a phone narrower than 375 px that's too narrow for the longest
+   messages (and under 340 px, for an eight-digit score), so there the type shrinks with the screen. */
 .display {
   height: 42px; border-radius: 6px; background: #120a02;
   box-shadow: inset 0 0 0 1px #3a2208, inset 0 2px 8px rgba(0, 0, 0, .8);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
-  font: 26px/1 var(--disp); color: var(--amber); letter-spacing: .04em;
+  font: clamp(16px, 15.5vw - 27px, 26px)/1 var(--disp); color: var(--amber); letter-spacing: .04em;
   text-shadow: 0 0 6px rgba(255, 140, 30, .7), 0 0 16px rgba(255, 120, 20, .35);
   background-image: radial-gradient(rgba(255, 165, 58, .07) 1px, transparent 1.2px); background-size: 4px 4px;
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-.display.msg { font-size: 18px; text-transform: uppercase; animation: flash .3s steps(2) 3; }
+.display.msg { font-size: clamp(12px, 8.9vw - 15.5px, 18px); text-transform: uppercase; animation: flash .3s steps(2) 3; }
 @keyframes flash { 50% { opacity: .35; } }
 .menu {
   justify-self: end; width: 44px; height: 44px; border-radius: 10px; border: 1px solid #3a2208;
