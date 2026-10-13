@@ -1,12 +1,12 @@
 // Plays Tilt in Chromium through the real page:  node test/e2e.mjs  (needs Playwright)
 // Checks a link's preview says what the title card says, starts a game, launches with the Launch button, flips with
-// touches on each half of the screen, pauses, drains every ball, checks the high score survives a reload, that a link
-// to a table that isn't there opens the first, plays a game of Space and one of Haunted House (down to its basement and
-// back) from the table picker, ends a game from the menu as its last ball counts its bonus (it's saved once), dates a
-// high score in the player's own time zone, fits the backbox's longest messages on a 320 px phone, follows the title
-// card's links from the keyboard, plays on over saved data it didn't write and in a window with no room for the table,
-// covers the page with its message when JavaScript is off, checks the screen slides between a table's floors, and loads
-// once more offline (sw.js must keep every file the page loads).
+// touches on each half of the screen, nudges with Space as How to play says, pauses, drains every ball, checks the high
+// score survives a reload, that a link to a table that isn't there opens the first, plays a game of Space and one of
+// Haunted House (down to its basement and back) from the table picker, ends a game from the menu as its last ball
+// counts its bonus (it's saved once), dates a high score in the player's own time zone, fits the backbox's longest
+// messages on a 320 px phone, follows the title card's links from the keyboard, plays on over saved data it didn't
+// write and in a window with no room for the table, covers the page with its message when JavaScript is off, checks the
+// screen slides between a table's floors, and loads once more offline (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -88,6 +88,12 @@ p = await peek();
 assert.ok(p.left && !p.right, 'lifting one finger drops only that flipper');
 await touch('touchEnd', [{ x: 60, y: 600, id: 2 }]);
 assert.ok(!(await peek()).left);
+
+// With the ball in play, Space nudges (it launches only while a ball waits in the shooter lane), as How to play says.
+await page.evaluate(() => { const g = window.tilt.game; g.state = 'live'; g.tiltMeter = 0; });
+await page.keyboard.press('Space');
+assert.ok(await page.evaluate(() => window.tilt.game.tiltMeter > 0.5), 'Space did not nudge');
+assert.match(await page.textContent('#howTo'), /Nudge:[^.]*Space/, 'How to play does not say Space nudges');
 
 // The menu pauses everything.
 await page.tap('#menuBtn');
