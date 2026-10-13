@@ -124,6 +124,10 @@ export function buildTable() {
   seg(40, 760, 40, 449, { r: 4, e: 0.35, kind: 'stone', ...B });
   chain([[100, 432], [412, 432], [446, 470], [446, 760]], { r: 4, e: 0.35, kind: 'stone', ...B });
   lower(BASEMENT);
+  // Under the flippers the stone walls carry on down to the drain (never drawn), as the cabinet's sides do upstairs, so
+  // a ball knocked out sideways down there drops into the drain instead of flying off the side of the screen.
+  seg(40, 880, 40, H + 40, { r: 4, e: 0.3, kind: 'cabinet', ...B });
+  seg(mx(40), 880, mx(40), H + 40, { r: 4, e: 0.3, kind: 'cabinet', ...B });
   // The coffin, filled like the house, and its lid: three drop targets along its foot.
   chain([[220, 455], [266, 455], [300, 500], [290, 548], [196, 548], [186, 500], [220, 455]], { r: 3, e: 0.35, kind: 'coffin', ...B });
   seg(239, 500, 247, 500, { r: 17, e: 0.3, kind: 'fill', ...B });

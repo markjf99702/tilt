@@ -1125,6 +1125,26 @@ test('Haunted: a ball nobody flips in the basement always drains', () => {
   }
 });
 
+test('Haunted: a ball knocked out sideways under the basement\'s flippers drains on the screen, not off its side', () => {
+  // As a late flip can send it. Upstairs the cabinet's walls keep it in; down here the stone walls carry on to the drain.
+  seed(11);
+  let thrown = 0;
+  for (let n = 0; n < 300; n++) {
+    const t = buildHaunted(), w = new World(t, NORMAL), b = makeBall(60 + Math.random() * 366, 900 + Math.random() * 120);
+    b.level = 1;
+    const x = b.x, y = b.y; w.collide(b);
+    if (Math.hypot(b.x - x, b.y - y) > 0.01) continue; // started inside something
+    const a = Math.random() * Math.PI * 2, v = 300 + Math.random() * 2700;
+    b.vx = b.wx = Math.cos(a) * v; b.vy = b.wy = Math.sin(a) * v;
+    w.balls.push(b); thrown++;
+    for (let ms = 0; ms < 5000 && b.y < t.H + 30; ms++) {
+      w.step(); w.events.length = 0;
+      assert.ok(b.x > -1 && b.x < t.W + 1, `thrown from ${x.toFixed(0)}, ${y.toFixed(0)}, it left by the side at ${b.x.toFixed(0)}, ${b.y.toFixed(0)}`);
+    }
+  }
+  assert.ok(thrown > 200);
+});
+
 test('Haunted: the ball save lasts until the ball first comes down to the flippers', () => {
   const [g, b] = hauntedGame();
   playOn(g, 10);
