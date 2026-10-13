@@ -1016,6 +1016,15 @@ test('Haunted: a hard shot at the shut door knocks on it and wakes a ghost; a so
   assert.equal(g.ghosts.filter(x => x.lit).length, 1);
 });
 
+test('Haunted: each knock wakes one more ghost, over the two that glow by themselves', () => {
+  const [g, b] = hauntedGame();
+  glow(g, 0); glow(g, 1);
+  for (const lit of [3, 4]) {
+    g.event({ type: 'hit', obj: g.table.door, ball: b, speed: 400 });
+    assert.equal(g.ghosts.filter(x => x.lit).length, lit);
+  }
+});
+
 test('Haunted: from a cradle, each flipper can shoot through the open door, or knock on it while it is shut', () => {
   for (const fi of [0, 1]) {
     const trap = hauntedCradle(fi, 'trapdoor', true), knock = hauntedCradle(fi, 'door');

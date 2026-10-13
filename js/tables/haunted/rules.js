@@ -12,7 +12,7 @@ const MULT_MAX = 5;
 const BALL_SAVE = 5;          // seconds: shorter than the machine's, but never over before the ball first reaches the flippers
 const GLOW = 3;               // seconds a ghost glows
 const DARK = [2, 6];          // seconds it's gone before it can glow again (somewhere between)
-const MAX_LIT = 2;            // ghosts glowing at once, at most (a knock on the door can wake one more)
+const MAX_LIT = 2;            // ghosts glowing at once by themselves, at most (each knock on the door wakes one more)
 const NEED = [2, 3, 4];       // ghosts to catch to open the door: the first time, the second, and every time after
 const fmt = n => n.toLocaleString('en-US');
 
