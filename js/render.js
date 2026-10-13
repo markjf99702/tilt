@@ -53,6 +53,9 @@ export class Renderer {
   }
 
   draw(game, now) {
+    // No room to draw in (a window shorter than the backbox, or a frame with no size yet): the table is painted once
+    // there is, as it's still marked dirty.
+    if (!(this.scale > 0) || !this.cv.width || !this.cv.height) return;
     const { ctx } = this;
     const t = game.table;
     if (this.dirty) this.paintStatic(t);

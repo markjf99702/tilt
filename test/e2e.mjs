@@ -4,8 +4,9 @@
 // to a table that isn't there opens the first, plays a game of Space and one of Haunted House (down to its basement and
 // back) from the table picker, ends a game from the menu as its last ball counts its bonus (it's saved once), dates a
 // high score in the player's own time zone, fits the backbox's longest messages on a 320 px phone, follows the title
-// card's links from the keyboard, plays on over saved data it didn't write, checks the screen slides between a table's
-// floors, and loads once more offline (sw.js must keep every file the page loads).
+// card's links from the keyboard, plays on over saved data it didn't write and in a window with no room for the table,
+// checks the screen slides between a table's floors, and loads once more offline (sw.js must keep every file the page
+// loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -273,6 +274,14 @@ for (const junk of ['42', '[]', '{"scores":"lots"}', '{"scores":[null,{"score":5
   assert.deepEqual(kept, junk.includes('5000') ? [5000, 4321] : [4321], `the scores saved over ${junk}`);
   await p.context().close();
 }
+
+// A window shorter than the backbox leaves the table no room. The machine runs on, and draws the table once it has room.
+const tiny = await freshPage({ viewport: { width: 390, height: 50 } });
+await tiny.goto(base);
+await tiny.waitForFunction(() => window.tilt?.game.world.time > 0.3, null, { timeout: 10000 });
+await tiny.setViewportSize({ width: 390, height: 844 });
+await tiny.waitForFunction(() => window.tilt.renderer.scale > 0 && !window.tilt.renderer.dirty, null, { timeout: 10000 });
+await tiny.context().close();
 
 // The screen slides between a table's floors, down to the one the ball is on and back up: a made-up table with two,
 // the top one red and the one under it blue. Someone who asks for less motion gets a cut instead.
