@@ -153,6 +153,9 @@ export class Classic extends Game {
         if (e.speed > this.settings.saucerGrab || b.held) return;
         b.held = { until: this.time + this.wsecs(1.1) };
         b.x = this.table.saucer.x; b.y = this.table.saucer.y; b.vx = 0; b.vy = 0; b.wx = 0; b.wy = 0;
+        // It's in the saucer now, even if it had already rolled out of it by the time the rules looked (a long
+        // frame), so the kick out of it isn't a way in that the saucer catches again.
+        b.inside.add(o);
         this.sound('saucer');
         this.skillOn = false;
         if (!live) return;

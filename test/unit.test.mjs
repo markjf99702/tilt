@@ -408,6 +408,34 @@ test('a skill shot pays 25,000 only in the flashing lane', () => {
   assert.equal(g.score - before, SCORES.skill + SCORES.lane);
 });
 
+test('the kickout never catches the ball it has just kicked out, however long the frames', () => {
+  // The rules look once a frame, and at 30 frames a second a fast ball can roll into the saucer and out again before
+  // they do. They put it back in the saucer, where it has to count as being, or the kick out of it is a way in and
+  // the saucer catches it again at once (up to 11 times in a row, before).
+  seed(7);
+  const g = new Classic({ ...NORMAL });
+  g.start('play');
+  g.state = 'live';
+  const s = g.table.saucer, b = g.world.balls[0];
+  let kicked = -1, again = 0;
+  const release = g.release.bind(g);
+  g.release = x => { kicked = g.time; release(x); };
+  for (let n = 0; n < 10; n++) {
+    Object.assign(b, { x: s.x + 30, y: s.y, vx: 0, vy: 0, wx: 0, wy: 0, held: null });
+    b.inside.clear(); // through the saucer and out again since the last frame
+    g.event({ type: 'enter', obj: s, ball: b, speed: 1600 });
+    assert.ok(b.held, 'the saucer did not catch the ball');
+    for (let f = 0; f < 30 * 1.3; f++) { // its 1.1 s in the saucer, and a moment after the kick
+      const was = b.held;
+      for (let i = 0; i < 25; i++) g.world.step();
+      g.update(1 / 30);
+      if (!was && b.held && g.time - kicked < 0.1) again++;
+    }
+    assert.ok(kicked > 0 && g.state === 'live' && g.world.balls.includes(b));
+  }
+  assert.equal(again, 0, `the saucer caught the ball it had just kicked out ${again} times in 10`);
+});
+
 // Space's own tests. A shot's window is how much of the flip timing makes it: world milliseconds, trying a flip
 // every 5 ms with the flipper held up for 200.
 
