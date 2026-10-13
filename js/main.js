@@ -217,7 +217,9 @@ function gameOver(g) {
   const score = g.score;
   game.mode = 'over';
   const list = store[table.scoresKey] || [];
-  const entry = { score, date: new Date().toISOString().slice(0, 10) };
+  // The day it was played where the player is: toISOString's date is UTC's, already tomorrow on a US evening.
+  const d = new Date(), date = [d.getFullYear(), d.getMonth() + 1, d.getDate()].map(n => String(n).padStart(2, '0')).join('-');
+  const entry = { score, date };
   list.push(entry);
   list.sort((a, b) => b.score - a.score);
   store[table.scoresKey] = list.slice(0, 5);

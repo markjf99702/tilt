@@ -2,8 +2,9 @@
 // Starts a game, launches with the Launch button, flips with touches on each half of the screen,
 // pauses, drains every ball, checks the high score survives a reload, that a link to a table that isn't
 // there opens the first, plays a game of Space and one of Haunted House (down to its basement and back) from the table
-// picker, ends a game from the menu as its last ball counts its bonus (it's saved once), checks the screen slides
-// between a table's floors, and loads once more offline (sw.js must keep every file the page loads).
+// picker, ends a game from the menu as its last ball counts its bonus (it's saved once), dates a high score in the
+// player's own time zone, checks the screen slides between a table's floors, and loads once more offline (sw.js must
+// keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -196,6 +197,29 @@ await page.waitForSelector('#over:not([hidden])', { timeout: 5000 });
 assert.equal(await page.textContent('#final'), ended.score.toLocaleString('en-US'));
 assert.equal(await page.evaluate(() => window.tilt.store.scores.length), listed + 1, 'End game saved the game more than once');
 assert.equal(await page.locator('#scores li').count(), listed + 1);
+
+// A page of its own, in a new browser context (a time zone, a window size, storage of its own), whose errors count too.
+async function freshPage(options = {}) {
+  const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, serviceWorkers: 'block', ...options });
+  const p = await c.newPage();
+  p.on('pageerror', e => problems.push(e.message));
+  return p;
+}
+
+// A high score is dated the day it was played where the player is: 5:30 on an October evening in California is
+// already the next day in UTC.
+const west = await freshPage({ timezoneId: 'America/Los_Angeles' });
+await west.clock.setFixedTime(new Date('2026-10-14T00:30:00Z'));
+await west.goto(base);
+await west.waitForFunction(() => window.tilt);
+await west.tap('#startBtn');
+await west.evaluate(() => { window.tilt.game.score += 4321; });
+await west.tap('#menuBtn');
+await west.tap('#quitBtn');
+await west.waitForSelector('#over:not([hidden])');
+assert.equal(await west.evaluate(() => window.tilt.store.scores[0].date), '2026-10-13');
+assert.equal(await west.textContent('#scores li.me small'), '10/13');
+await west.context().close();
 
 // The screen slides between a table's floors, down to the one the ball is on and back up: a made-up table with two,
 // the top one red and the one under it blue. Someone who asks for less motion gets a cut instead.
