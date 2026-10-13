@@ -124,6 +124,30 @@ for (const table of Object.values(TABLES)) {
     assert.equal(g.ballNo, 1);
     assert.ok(!g.lamps.shootAgain && g.extraBalls === 0);
   });
+
+  test(`${table.name}: the ball save gives a ball back once; drained again straight away, it's lost`, () => {
+    // One each: a ball given back has no ball save of its own, or on Space a player who never flipped would never lose one.
+    const shown = [];
+    const g = new table.Game({ ...NORMAL }, { show: text => shown.push(text) });
+    g.start('play');
+    const saves = () => shown.filter(s => s === 'Ball saved').length;
+    // Plunged into play and straight down the drain; on until a ball waits in the shooter lane again.
+    const drain = () => {
+      const b = g.world.balls[0];
+      g.event({ type: 'cross', obj: g.table.laneExit, ball: b, dir: -1, speed: 1000 });
+      Object.assign(b, { x: g.table.W / 2, y: g.table.H + 100 });
+      for (let f = 0; f < 60 * 8 && g.state !== 'lane'; f++) { for (let i = 0; i < 13; i++) g.world.step(); g.update(1 / 60); }
+      g.update(0);
+    };
+    drain();
+    assert.equal(saves(), 1, 'a ball drained in its first seconds was not given back');
+    assert.equal(g.ballNo, 1);
+    assert.ok(!g.lamps.ballSave, 'the ball given back is lit for a ball save of its own');
+    drain();
+    assert.equal(saves(), 1, 'the ball given back was given back again');
+    assert.equal(g.ballNo, 2);
+    assert.ok(g.lamps.ballSave, 'the next ball has no ball save');
+  });
 }
 
 // The machine's own parts, on a small test table: a box with a shooter lane down the right, and a ramp straight up

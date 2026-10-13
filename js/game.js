@@ -32,6 +32,7 @@ export class Game {
     this.state = 'idle'; // lane | live | bonus | idle
     this.saveUntil = 0;
     this.saveArmed = false;
+    this.givenBack = false; // the ball save has just given this ball back (see drained())
     this.launching = 0; // balls given back that are waiting for the shooter lane (see launchBall())
     this.timers = [];
     this.floor = 0; // the floor the screen shows
@@ -64,7 +65,8 @@ export class Game {
     const b = makeBall((p.x0 + p.x1) / 2, p.y - BALL_R);
     this.world.balls.push(b);
     this.state = 'lane';
-    this.saveArmed = true;
+    this.saveArmed = !this.givenBack; // a ball the ball save gave back doesn't get a second one
+    this.givenBack = false;
     this.floor = 0; // a table with a basement serves every ball upstairs
     if (this.mode === 'play') this.show('Ball ' + this.ballNo, 1.2);
   }
@@ -202,6 +204,7 @@ export class Game {
       this.show('Ball saved', 1.6);
       this.sound('saved');
       this.saveUntil = 0;
+      this.givenBack = true;
       this.after(0.8, () => this.serve());
       this.state = 'idle';
       return;
