@@ -3,8 +3,9 @@
 // touches on each half of the screen, pauses, drains every ball, checks the high score survives a reload, that a link
 // to a table that isn't there opens the first, plays a game of Space and one of Haunted House (down to its basement and
 // back) from the table picker, ends a game from the menu as its last ball counts its bonus (it's saved once), dates a
-// high score in the player's own time zone, fits the backbox's longest messages on a 320 px phone, checks the screen
-// slides between a table's floors, and loads once more offline (sw.js must keep every file the page loads).
+// high score in the player's own time zone, fits the backbox's longest messages on a 320 px phone, follows the title
+// card's links from the keyboard, checks the screen slides between a table's floors, and loads once more offline (sw.js
+// must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -246,6 +247,18 @@ const cut = await small.evaluate(async () => {
 });
 assert.deepEqual(cut, [], 'cut off at the ends of the display on a 320 px phone');
 await small.context().close();
+
+// On a keyboard, Enter on one of the title card's links follows it, rather than starting a game.
+for (const [i, to] of [[0, 'https://junkdrawer.works/'], [1, 'https://junkdrawer.works/privacy.html']]) {
+  const desk = await freshPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1, isMobile: false, hasTouch: false });
+  await desk.route('https://junkdrawer.works/**', r => r.fulfill({ contentType: 'text/html', body: '<title>junkdrawer.works</title>' }));
+  await desk.goto(base);
+  await desk.waitForFunction(() => window.tilt);
+  await desk.locator('#title .jd-foot a').nth(i).focus();
+  await desk.keyboard.press('Enter');
+  await desk.waitForURL(to, { timeout: 10000 });
+  await desk.context().close();
+}
 
 // The screen slides between a table's floors, down to the one the ball is on and back up: a made-up table with two,
 // the top one red and the one under it blue. Someone who asks for less motion gets a cut instead.
