@@ -1,7 +1,7 @@
 // The physics and the rules, without a browser:  node --test test/unit.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { World, makeBall, BALL_R, flipperEnds, closestOnSeg } from '../js/physics.js';
+import { World, makeBall, BALL_R, STEP, flipperEnds, closestOnSeg } from '../js/physics.js';
 import { Game } from '../js/game.js';
 import { TABLES } from '../js/tables.js';
 import { buildTable, H } from '../js/tables/classic/layout.js';
@@ -310,6 +310,34 @@ test('two balls lost at once in the ball save both come back, the second once th
   for (let f = 0; f < 60; f++) { for (let i = 0; i < 13; i++) g.world.step(); g.update(1 / 60); }
   assert.equal(g.inPlay(), 2);
   assert.equal(g.launching, 0);
+});
+
+test('the same hold on the plunger makes the same plunge at any frame rate', () => {
+  // A press and a release land between frames, and the plunger only moves while the clock runs, so counted by itself
+  // its pull comes in whole frames: at 30 a second only every 0.037 of the way, coarser than a skill-shot lane is wide.
+  // The events' own times say how long it was held.
+  const s = NORMAL, speed = pull => s.launchMin + (s.launchMax - s.launchMin) * Math.pow(pull, 0.9);
+  for (const fps of [30, 60, 120]) for (const press of [251, 263, 270]) {
+    const g = new TestGame({ ...NORMAL });
+    g.start('play');
+    const p = g.table.plunger, release = press + 380; // milliseconds, on the page's clock
+    let pressed = false, acc = 0;
+    for (let now = 1000 / fps; ; now += 1000 / fps) { // a frame: what happened since the last one, then the clock
+      if (now > press && !pressed) { g.plunge(true, press); pressed = true; }
+      if (now > release) { g.plunge(false, release); break; }
+      acc += s.timeScale / fps;
+      while (acc >= STEP) { g.world.step(); acc -= STEP; }
+    }
+    assert.ok(p.firing, 'it never fired');
+    assert.ok(Math.abs(p.fireSpeed - speed(0.38 / p.pullTime)) < 1e-6, `held 380 ms at ${fps} fps, it fired at ${p.fireSpeed.toFixed(1)} mm/s, not ${speed(0.38 / p.pullTime).toFixed(1)}`);
+  }
+  // Without the times (the demo's autopilot), it goes by how far the plunger got.
+  const g = new TestGame({ ...NORMAL });
+  g.start('play');
+  g.plunge(true);
+  for (let i = 0; i < 0.4 * 750; i++) g.world.step(); // 0.4 s at three-quarter speed
+  g.plunge(false);
+  assert.ok(g.table.plunger.firing && Math.abs(g.table.plunger.fireSpeed - speed(0.4 / 0.9)) < 5, 'the demo\'s plunge went wrong');
 });
 
 // Classic's own tests.

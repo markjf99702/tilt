@@ -138,9 +138,9 @@ const launch = $('launch');
 launch.addEventListener('pointerdown', e => {
   e.preventDefault(); e.stopPropagation(); unlock();
   try { launch.setPointerCapture(e.pointerId); } catch { }
-  if (game.mode === 'play' && !paused) game.plunge(true);
+  if (game.mode === 'play' && !paused) game.plunge(true, e.timeStamp);
 });
-const launchUp = e => { e.preventDefault(); game.plunge(false); };
+const launchUp = e => { e.preventDefault(); game.plunge(false, e.timeStamp); };
 launch.addEventListener('pointerup', launchUp);
 launch.addEventListener('pointercancel', launchUp);
 
@@ -167,14 +167,14 @@ document.addEventListener('keydown', e => {
   else if (RIGHT.includes(e.code)) { e.preventDefault(); game.flip('right', true); }
   else if (PLUNGE.includes(e.code)) {
     e.preventDefault();
-    if (game.state === 'lane' && game.ballInLane()) game.plunge(true);
+    if (game.state === 'lane' && game.ballInLane()) game.plunge(true, e.timeStamp);
     else if (e.code === 'Space') doNudge(0);
   } else if (e.code === 'ArrowUp') { e.preventDefault(); doNudge(0); }
 });
 document.addEventListener('keyup', e => {
   if (LEFT.includes(e.code)) game.flip('left', false);
   else if (RIGHT.includes(e.code)) game.flip('right', false);
-  else if (PLUNGE.includes(e.code)) game.plunge(false);
+  else if (PLUNGE.includes(e.code)) game.plunge(false, e.timeStamp);
 });
 
 // ---------- menus ----------

@@ -93,11 +93,17 @@ export class Game {
   // A flipper button went down with a ball on the table (to change lanes, say).
   flipped(side) { }
 
-  plunge(down) {
+  // The plunger: held, it pulls back (physics.js); let go, it fires, as hard as it was held long. `at` is when the
+  // button went down or up, in milliseconds (the event's own time). The plunger only moves while the clock runs, a
+  // frame at a time, so with both times the pull is worked out from them instead: at 30 frames a second it would
+  // otherwise only come in steps of a thirtieth of a second's pull, too coarse to aim the skill shot.
+  plunge(down, at) {
     const p = this.table.plunger;
-    if (down) { if (!p.firing) p.pulling = true; return; }
+    if (down) { if (!p.firing && !p.pulling) { p.pulling = true; p.pressedAt = at; } return; }
     if (!p.pulling) return;
     p.pulling = false;
+    const held = (at - p.pressedAt) / 1000;
+    if (held >= 0 && held < 60) p.pull = Math.min(1, held / p.pullTime);
     if (p.pull < 0.04) { p.pull = 0; return; }
     p.firing = true;
     const s = this.settings;
