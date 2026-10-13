@@ -2,8 +2,8 @@
 // Starts a game, launches with the Launch button, flips with touches on each half of the screen,
 // pauses, drains every ball, checks the high score survives a reload, that a link to a table that isn't
 // there opens the first, plays a game of Space and one of Haunted House (down to its basement and back) from the table
-// picker, checks the screen slides between a table's floors, and loads once more offline (sw.js must keep every file
-// the page loads).
+// picker, ends a game from the menu as its last ball counts its bonus (it's saved once), checks the screen slides
+// between a table's floors, and loads once more offline (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -176,6 +176,26 @@ assert.equal(await page.evaluate(() => JSON.stringify(window.tilt.store.scores))
 await page.goto(base + '?table=classic');
 await page.waitForFunction(() => window.tilt);
 assert.equal(await page.evaluate(() => window.tilt.table.name), 'Classic');
+
+// End game from the menu while the last ball's bonus counts: the game is saved once, at the score it had then. The
+// rest of that ball never comes, however long the demo takes to start again (the clock is run on here at once).
+await page.tap('#startBtn');
+await page.waitForSelector('#launch:not([hidden])');
+const listed = await page.evaluate(() => window.tilt.store.scores.length);
+await page.evaluate(() => { const g = window.tilt.game, b = g.world.balls[0]; g.settings.ballSave = 0; g.saveUntil = 0; g.ballNo = 3; g.score += 40000; g.lamps.bonus = 10; b.x = 243; b.y = 980; b.vx = 0; b.vy = 300; g.state = 'live'; });
+await page.waitForFunction(() => window.tilt.game.state === 'bonus', null, { timeout: 15000 });
+await page.tap('#menuBtn');
+const ended = await page.evaluate(() => {
+  const g = window.tilt.game, score = g.score;
+  document.getElementById('quitBtn').click();
+  for (let i = 0; i < 60; i++) { g.world.time += 0.1; g.update(0); }
+  return { score, after: g.score };
+});
+assert.equal(ended.after, ended.score, 'the bonus went on counting after End game');
+await page.waitForSelector('#over:not([hidden])', { timeout: 5000 });
+assert.equal(await page.textContent('#final'), ended.score.toLocaleString('en-US'));
+assert.equal(await page.evaluate(() => window.tilt.store.scores.length), listed + 1, 'End game saved the game more than once');
+assert.equal(await page.locator('#scores li').count(), listed + 1);
 
 // The screen slides between a table's floors, down to the one the ball is on and back up: a made-up table with two,
 // the top one red and the one under it blue. Someone who asks for less motion gets a cut instead.

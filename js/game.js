@@ -197,6 +197,7 @@ export class Game {
   drained() {
     for (const f of this.table.flippers) f.pressed = false;
     if (this.mode === 'attract') { this.after(1, () => { this.serve(); }); this.state = 'idle'; return; }
+    if (this.mode === 'over') { this.state = 'idle'; return; } // ended from the menu: the ball counts for nothing now
     if (!this.tilted && (this.saveUntil > this.time || this.state === 'lane')) {
       this.show('Ball saved', 1.6);
       this.sound('saved');
@@ -214,6 +215,7 @@ export class Game {
   countBonus() { this.after(1, () => this.endOfBall()); }
 
   endOfBall() {
+    if (this.mode !== 'play') return; // ended from the menu meanwhile: that saved the game, so it's over already
     if (this.lamps.shootAgain) { this.show('Shoot again', 1.6); this.nextBall(); return; }
     if (this.ballNo >= this.settings.balls) {
       this.state = 'idle';

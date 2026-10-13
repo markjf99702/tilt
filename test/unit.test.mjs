@@ -90,6 +90,27 @@ for (const table of Object.values(TABLES)) {
     g.flip('left', true); g.flip('right', true);
     assert.ok(g.table.flippers.every(f => !f.pressed));
   });
+
+  test(`${table.name}: a game ended from the menu stays ended: its last ball never ends it again or counts a bonus`, () => {
+    // End game saves the game there and then (main.js), and the game goes to 'over'. Its last ball may be counting
+    // its bonus by then, or still in play and about to drain.
+    for (const when of ['counting its bonus', 'in play']) {
+      let overs = 0;
+      const g = new table.Game({ ...NORMAL, ballSave: 0 }, { over: () => { overs++; } });
+      g.start('play');
+      g.ballNo = g.settings.balls;
+      if ('bonus' in g.lamps) g.lamps.bonus = 10; else for (const k in g.counts) g.counts[k] = 5; // a bonus to count
+      const b = g.world.balls[0];
+      g.state = 'live';
+      if (when === 'counting its bonus') { b.y = g.table.H + 100; g.update(1 / 60); assert.equal(g.state, 'bonus'); }
+      g.mode = 'over';
+      const score = g.score;
+      b.y = g.table.H + 100;
+      for (let f = 0; f < 60 * 8; f++) { for (let i = 0; i < 17; i++) g.world.step(); g.update(1 / 60); }
+      assert.equal(overs, 0, `the ball ${when} when the game was ended ended it again`);
+      if (when === 'in play') assert.equal(g.score, score, 'the ball drained after the game was ended, and its bonus counted');
+    }
+  });
 }
 
 // The machine's own parts, on a small test table: a box with a shooter lane down the right, and a ramp straight up

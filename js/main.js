@@ -186,6 +186,8 @@ $('menuBtn').addEventListener('click', () => {
 $('resumeBtn').addEventListener('click', () => setPaused(false));
 $('quitBtn').addEventListener('click', () => {
   $('pause').hidden = true; paused = false;
+  // The game ends here, at the score it has: the rest of the ball (a bonus still counting, the next ball) never comes.
+  game.timers = [];
   if (game.score > 0) gameOver(game); else toTitle();
 });
 function soundLabel() { $('soundBtn').textContent = 'Sound: ' + (store.sound === false ? 'off' : 'on'); }
