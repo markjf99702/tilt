@@ -111,6 +111,19 @@ for (const table of Object.values(TABLES)) {
       if (when === 'in play') assert.equal(g.score, score, 'the ball drained after the game was ended, and its bonus counted');
     }
   });
+
+  test(`${table.name}: a ball that drains with an extra ball earned says Shoot again, and the same ball comes back`, () => {
+    const shown = []; // the display shows the latest message
+    const g = new table.Game({ ...NORMAL, ballSave: 0 }, { show: text => shown.push(text) });
+    g.start('play');
+    g.lamps.shootAgain = true; g.extraBalls = 1;
+    g.state = 'live'; g.world.balls[0].y = g.table.H + 100;
+    for (let f = 0; f < 60 * 8 && g.state !== 'lane'; f++) { for (let i = 0; i < 17; i++) g.world.step(); g.update(1 / 60); }
+    assert.equal(g.state, 'lane', 'no ball was served');
+    assert.equal(shown.at(-1), 'Shoot again');
+    assert.equal(g.ballNo, 1);
+    assert.ok(!g.lamps.shootAgain && g.extraBalls === 0);
+  });
 }
 
 // The machine's own parts, on a small test table: a box with a shooter lane down the right, and a ramp straight up

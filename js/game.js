@@ -216,7 +216,7 @@ export class Game {
 
   endOfBall() {
     if (this.mode !== 'play') return; // ended from the menu meanwhile: that saved the game, so it's over already
-    if (this.lamps.shootAgain) { this.show('Shoot again', 1.6); this.nextBall(); return; }
+    if (this.lamps.shootAgain) { this.nextBall(); this.show('Shoot again', 1.6); return; } // after serve()'s "Ball N"
     if (this.ballNo >= this.settings.balls) {
       this.state = 'idle';
       this.mode = 'over';
