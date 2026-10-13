@@ -829,6 +829,24 @@ test('Space: a locked ball stays locked when the ball in play drains', () => {
   assert.ok(g.world.balls.includes(first) && first.locked, 'the locked ball is still there');
 });
 
+test('Space: a ball the ball save gave back can be locked, and the ball served after the lock has a ball save of its own', () => {
+  const g = new Space({ ...NORMAL }), shown = [];
+  g.out.show = text => shown.push(text);
+  g.start('play');
+  const first = g.world.balls[0];
+  cross(g, 'laneExit', first); // into play: its ball save starts
+  first.y = g.table.H + 100;
+  playOn(g, 2);
+  assert.deepEqual(shown.filter(s => s === 'Ball saved'), ['Ball saved']);
+  assert.ok(g.state === 'lane' && !g.lamps.ballSave, 'the ball given back has a ball save of its own');
+  const given = g.world.balls[0];
+  cross(g, 'laneExit', given);
+  rampShot(g, given); intoDock(g, given);
+  assert.ok(given.locked && g.state === 'lane', 'the ball given back was not locked, or no ball was served after it');
+  g.update(0);
+  assert.ok(g.lamps.ballSave, 'the ball served after the lock has no ball save');
+});
+
 test('Space: a ball the dock lifts onto the ramp is not a ramp shot', () => {
   const g = spaceGame(), b = g.world.balls[0];
   intoDock(g, b);
