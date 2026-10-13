@@ -25,18 +25,26 @@ const out = {
 let paused = false;
 
 // ---------- saved things ----------
+// Anything there that isn't what Tilt saves (edited by hand, say) is passed over, and replaced at the next save.
 function load() {
-  try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; }
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY));
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  } catch { return {}; }
 }
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(store)); } catch { /* private mode: play on without saving */ }
 }
 const fmt = n => n.toLocaleString('en-US');
 
-// Each table keeps its own top five.
+// Each table keeps its own top five: the scores that can be read, best first.
+function topFive() {
+  const list = store[table.scoresKey];
+  return Array.isArray(list) ? list.filter(s => s && Number.isFinite(+s.score)) : [];
+}
 function showBest() {
-  const top = (store[table.scoresKey] || [])[0];
-  $('bestLine').textContent = top ? `Best: ${fmt(top.score)}` : '';
+  const top = topFive()[0];
+  $('bestLine').textContent = top ? `Best: ${fmt(+top.score)}` : '';
 }
 
 // ---------- layout ----------
@@ -64,7 +72,7 @@ $('tables').addEventListener('change', e => useTable(e.target.value));
 // address names it, so a link opens it.
 function useTable(id) {
   table = TABLES[id];
-  skin = table.skins[store.skin] || Object.values(table.skins)[0];
+  skin = Object.keys(table.skins).includes(store.skin) ? table.skins[store.skin] : Object.values(table.skins)[0];
   renderer.setTable(table);
   renderer.setSkin(skin);
   game = new table.Game({ ...NORMAL }, out);
@@ -217,7 +225,7 @@ function toTitle() {
 function gameOver(g) {
   const score = g.score;
   game.mode = 'over';
-  const list = store[table.scoresKey] || [];
+  const list = topFive();
   // The day it was played where the player is: toISOString's date is UTC's, already tomorrow on a US evening.
   const d = new Date(), date = [d.getFullYear(), d.getMonth() + 1, d.getDate()].map(n => String(n).padStart(2, '0')).join('-');
   const entry = { score, date };
@@ -232,7 +240,7 @@ function gameOver(g) {
   store[table.scoresKey].forEach(s => {
     const li = document.createElement('li');
     if (s === entry) li.className = 'me';
-    li.innerHTML = `<span>${fmt(s.score)}</span> <small>${s.date.slice(5).replace('-', '/')}</small>`;
+    li.innerHTML = `<span>${fmt(+s.score)}</span> <small>${typeof s.date === 'string' ? s.date.slice(5).replace('-', '/') : ''}</small>`;
     $('scores').appendChild(li);
   });
   setTimeout(() => { $('over').hidden = false; $('againBtn').focus(); }, 900);
@@ -265,7 +273,7 @@ function hud(now) {
     if (msg) d.textContent = msg; else { d.innerHTML = '<span id="score"></span>'; shownScore = -1; }
   }
   if (!msg) {
-    const s = game.mode === 'play' || game.mode === 'over' ? game.score : (store[table.scoresKey]?.[0]?.score ?? 0);
+    const s = game.mode === 'play' || game.mode === 'over' ? game.score : +(topFive()[0]?.score ?? 0);
     if (s !== shownScore) { shownScore = s; $('score').textContent = fmt(s); }
   }
   const ball = game.mode === 'play' ? `Ball ${game.ballNo}` + (game.extraBalls > 0 ? '+' : '') : game.mode === 'over' ? 'Game over' : 'Best';

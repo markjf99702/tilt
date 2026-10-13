@@ -4,8 +4,8 @@
 // to a table that isn't there opens the first, plays a game of Space and one of Haunted House (down to its basement and
 // back) from the table picker, ends a game from the menu as its last ball counts its bonus (it's saved once), dates a
 // high score in the player's own time zone, fits the backbox's longest messages on a 320 px phone, follows the title
-// card's links from the keyboard, checks the screen slides between a table's floors, and loads once more offline (sw.js
-// must keep every file the page loads).
+// card's links from the keyboard, plays on over saved data it didn't write, checks the screen slides between a table's
+// floors, and loads once more offline (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -258,6 +258,20 @@ for (const [i, to] of [[0, 'https://junkdrawer.works/'], [1, 'https://junkdrawer
   await desk.keyboard.press('Enter');
   await desk.waitForURL(to, { timeout: 10000 });
   await desk.context().close();
+}
+
+// Saved data that isn't what Tilt saves (edited by hand, say) doesn't stop the machine: the demo plays, a game ends
+// with its card and is saved, and any score that can be read is kept.
+for (const junk of ['42', '[]', '{"scores":"lots"}', '{"scores":[null,{"score":5000}]}', '{"skin":"toString"}']) {
+  const p = await freshPage();
+  await p.addInitScript(v => localStorage.setItem('tilt.v1', v), junk);
+  await p.goto(base);
+  await p.waitForFunction(() => window.tilt?.game.world.time > 0.2, null, { timeout: 10000 });
+  await p.evaluate(() => { window.tilt.startGame(); window.tilt.game.score += 4321; document.getElementById('menuBtn').click(); document.getElementById('quitBtn').click(); });
+  await p.waitForSelector('#over:not([hidden])', { timeout: 5000 });
+  const kept = await p.evaluate(() => JSON.parse(localStorage.getItem('tilt.v1')).scores.map(s => s.score));
+  assert.deepEqual(kept, junk.includes('5000') ? [5000, 4321] : [4321], `the scores saved over ${junk}`);
+  await p.context().close();
 }
 
 // The screen slides between a table's floors, down to the one the ball is on and back up: a made-up table with two,
