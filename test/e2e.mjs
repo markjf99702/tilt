@@ -5,8 +5,8 @@
 // back) from the table picker, ends a game from the menu as its last ball counts its bonus (it's saved once), dates a
 // high score in the player's own time zone, fits the backbox's longest messages on a 320 px phone, follows the title
 // card's links from the keyboard, plays on over saved data it didn't write and in a window with no room for the table,
-// checks the screen slides between a table's floors, and loads once more offline (sw.js must keep every file the page
-// loads).
+// covers the page with its message when JavaScript is off, checks the screen slides between a table's floors, and loads
+// once more offline (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -282,6 +282,19 @@ await tiny.waitForFunction(() => window.tilt?.game.world.time > 0.3, null, { tim
 await tiny.setViewportSize({ width: 390, height: 844 });
 await tiny.waitForFunction(() => window.tilt.renderer.scale > 0 && !window.tilt.renderer.dirty, null, { timeout: 10000 });
 await tiny.context().close();
+
+// With JavaScript off, the page says what it needs it for, over everything else and with nothing showing through.
+const nojs = await freshPage({ javaScriptEnabled: false });
+await nojs.goto(base);
+assert.ok(await nojs.evaluate(() => {
+  const n = document.querySelector('.noscript');
+  const onTop = [...document.querySelectorAll('#title h1, #title p, #title button')].every(e => {
+    const r = e.getBoundingClientRect();
+    return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === n;
+  });
+  return onTop && /^rgb\(/.test(getComputedStyle(n).backgroundColor);
+}), 'the title card shows through the message for a browser with JavaScript off');
+await nojs.context().close();
 
 // The screen slides between a table's floors, down to the one the ball is on and back up: a made-up table with two,
 // the top one red and the one under it blue. Someone who asks for less motion gets a cut instead.
