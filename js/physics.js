@@ -78,8 +78,13 @@ export class World {
       this.collide(b);
       this.sense(b, px, py);
     }
-    // Balls against each other (only matters once there's more than one).
-    for (let i = 0; i < this.balls.length; i++) for (let j = i + 1; j < this.balls.length; j++) ballBall(this.balls[i], this.balls[j]);
+    // Balls against each other (only matters once there's more than one). A ball pushed across a line by the other
+    // has crossed it too: at a ramp's mouth, a ball just lifted onto the ramp can be knocked straight back out of it.
+    for (let i = 0; i < this.balls.length; i++) for (let j = i + 1; j < this.balls.length; j++) {
+      const a = this.balls[i], c = this.balls[j], ax = a.x, ay = a.y, cx = c.x, cy = c.y;
+      ballBall(a, c);
+      if (a.x !== ax || a.y !== ay) { this.sense(a, ax, ay); this.sense(c, cx, cy); }
+    }
   }
 
   // A ball up on a ramp feels the ramp's own slope as well as the table's: held back while it climbs, sped up on

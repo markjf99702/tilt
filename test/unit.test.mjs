@@ -639,6 +639,31 @@ test('Space: a ball coming down the wire passes over a ball on the playfield und
   assert.deepEqual([both.under.x, both.under.y], [alone.under.x, alone.under.y], 'the ball on the playfield was knocked');
 });
 
+test('Space: a ball knocked back out of the ramp\'s mouth by another comes down onto the playfield', () => {
+  // In multiball: one ball shot up into the mouth meets another rolling back down out of it. The one going up is
+  // lifted onto the ramp as it crosses the mouth, and the other can push it straight back across. It has to come off
+  // the ramp there, or it falls down the table on the ramp's level, through the slingshots and flippers.
+  const path = buildSpace().ramps[0].path;
+  const offRamp = b => Math.min(...path.slice(1).map((p, k) => { const q = closestOnSeg(b.x, b.y, path[k][0], path[k][1], p[0], p[1]); return Math.hypot(b.x - q.x, b.y - q.y); }));
+  let met = 0, lost = 0;
+  for (const ax of [190, 210, 230]) for (const av of [1300, 2100]) for (const [bx, by] of [[200, 440], [222, 470]]) for (const bv of [200, 800]) for (const lag of [0, 40, 80]) {
+    const w = new World(buildSpace(), NORMAL), up = makeBall(ax, 520), down = makeBall(bx, by);
+    up.vy = up.wy = -av; down.level = 1; down.vy = down.wy = bv;
+    w.balls.push(down);
+    let meet = false, off = false;
+    run(w, 1200, i => {
+      if (i === lag) w.balls.push(up);
+      if (w.balls.length === 2 && up.level === down.level && Math.hypot(up.x - down.x, up.y - down.y) < 2 * BALL_R) meet = true;
+      for (const b of w.balls) if (b.level === 1 && b.y > 500 && offRamp(b) > 30) off = true;
+      w.events.length = 0;
+    });
+    if (meet) met++;
+    if (off) lost++;
+  }
+  assert.ok(met > 20, `the balls only met ${met} times`);
+  assert.equal(lost, 0, `${lost} of ${met} meetings left a ball on the ramp's level below its mouth`);
+});
+
 test('Space: balls glancing off the outside of the ramp\'s mouth are kept out of the right outlane', () => {
   // Thrown down to the left from under the pops, as the bumpers throw them, with nobody flipping.
   let glanced = 0, outlane = 0;
