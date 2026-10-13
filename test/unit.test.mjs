@@ -323,6 +323,28 @@ test('a full plunge goes round the arch and down the left orbit through the spin
   assert.ok(seen.has('spinner'), 'came down the orbit through the spinner');
 });
 
+test('a shot up the left orbit comes round onto the gate, which doesn\'t throw it across into the left outlane', () => {
+  // Nobody flipping, at the speeds a flipper gives a ball up the orbit. Off a hard, slick gate one in 16 went straight
+  // across the table at 45 degrees into the left outlane.
+  let gate = 0, outlane = 0;
+  for (let v = 1300; v <= 3700; v += 150) for (const x of [15, 21, 27, 33]) for (const vx of [-120, -40, 40, 120]) {
+    const t = buildTable(), w = new World(t, NORMAL), b = makeBall(x, 540);
+    b.vx = b.wx = vx; b.vy = b.wy = -v; w.balls.push(b);
+    let hit = false, to = null;
+    for (let i = 0; i < 7000 && !to && b.y < 860; i++) { // (the outlanes' rollovers are above 860)
+      w.step();
+      for (const e of w.events) {
+        if (e.type === 'hit' && e.obj.kind === 'gate') hit = true;
+        if (e.type === 'enter' && (e.obj.id === 'inlane' || e.obj.id === 'outlane')) to = e.obj.id + e.obj.side;
+      }
+      w.events.length = 0;
+    }
+    if (hit) { gate++; if (to === 'outlane1') outlane++; }
+  }
+  assert.ok(gate > 250, `only ${gate} shots came round onto the gate`);
+  assert.ok(outlane * 40 < gate, `${outlane} of the ${gate} shots that came round onto the gate went into the left outlane`);
+});
+
 test('a medium plunge can drop into a top lane', () => {
   const lanes = new Set();
   // (The ball skids up the shooter lane, so these are 200 mm/s above the old range, like launchMin/launchMax.)

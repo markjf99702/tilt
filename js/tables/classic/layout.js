@@ -45,7 +45,9 @@ export function buildTable() {
   // ---- shooter lane ----
   seg(PF_RIGHT, 330, PF_RIGHT, H + 40, { r: 2, e: 0.3, kind: 'rail' });
   post(PF_RIGHT, 330, 3, { e: 0.3, kind: 'rail' });
-  const gate = seg(PF_RIGHT, 334, W, 300, { r: 2, e: 0.2, oneWay: true, kind: 'gate' });
+  // A shot up the left orbit comes round the arch and down onto the gate's closed side. A hinged wire gate takes the
+  // pace off it: a hard, slick one would throw the ball straight across the table into the left outlane.
+  const gate = seg(PF_RIGHT, 334, W, 300, { r: 2, e: 0, mu: 0.4, oneWay: true, kind: 'gate' });
   { const len = Math.hypot(gate.bx - gate.ax, gate.by - gate.ay); gate.nx = (gate.by - gate.ay) / len; gate.ny = -(gate.bx - gate.ax) / len; }
   const plunger = { x0: PF_RIGHT, x1: W, y: 1000, travel: 46, pull: 0, pulling: false, firing: false, fireSpeed: 0, pullTime: 0.9 };
   const laneExit = line(PF_RIGHT, 300, W, 300, { id: 'laneExit' });
