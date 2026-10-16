@@ -266,14 +266,14 @@ function say(text, secs) {
   msgs.push({ text, secs, at: 0 });
   if (msgs.length > 3) msgs.splice(1, 1);
 }
-// The message up at clock time `now` ('' for none), taking each one down when its time is up.
+// The message up at clock time `now` ('' for none), taking each one down when its time is up. The next one then goes
+// up for all of its own time, even when it came after the one up had already had its second.
 function message(now) {
   while (msgs.length) {
     const m = msgs[0], secs = msgs.length > 1 ? Math.min(1, m.secs) : m.secs;
     if (!m.at) m.at = now;
     if (now < m.at + secs * 1000) return m.text;
     msgs.shift();
-    if (msgs.length) msgs[0].at = m.at + secs * 1000; // the next goes up as this one comes down
   }
   return '';
 }

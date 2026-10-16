@@ -262,7 +262,8 @@ await small.context().close();
 // When one shot earns two awards, the display shows both, one after the other: the first for a second, the next for
 // its own time. On Space, the ramp that lights the eighth planet in multiball lights the extra ball and scores the
 // jackpot, and the skill shot into the dock with the lock lit locks the ball too. Of four messages at once the display
-// shows the first and the last two, and the same one twice running shows once.
+// shows the first and the last two, and the same one twice running shows once. One that comes when the one up has
+// already been up a second goes up straight away, for its own time: the next ball, 2.3 s into a 3 s Tilt.
 const queue = await freshPage();
 await queue.goto(base + '?table=space');
 await queue.waitForFunction(() => window.tilt);
@@ -292,6 +293,11 @@ const shows = await queue.evaluate(async () => {
   shows.four = await watch();
   g.show('Danger', 1.2); g.show('Danger', 1.2); g.show('Tilt', 1.2);
   shows.twice = await watch();
+  g.show('Tilt', 3);
+  const late = watch();
+  await new Promise(r => setTimeout(r, 2300));
+  g.show('Ball 2', 1.2);
+  shows.late = await late;
   return shows;
 });
 const texts = seen => seen.map(([text]) => text);
@@ -302,6 +308,8 @@ assert.ok(shows.ramp[1][1] >= 1.8, `the last of two messages was up for ${shows.
 assert.deepEqual(texts(shows.lock), ['Skill shot 25,000', 'Ball locked'], 'a skill shot that locked a ball did not show both, and nothing else');
 assert.deepEqual(texts(shows.four), ['One', 'Three', 'Four']);
 assert.deepEqual(texts(shows.twice), ['Danger', 'Tilt']);
+assert.deepEqual(texts(shows.late), ['Tilt', 'Ball 2'], 'the next ball after a tilt was not announced');
+assert.ok(shows.late[1][1] >= 1.1, `the next ball after a tilt was announced for ${shows.late[1][1]} s, not its own 1.2 s`);
 await queue.context().close();
 
 // The Launch button with a ball waiting to be plunged, against the window and the table's right flipper (the one by
