@@ -51,11 +51,17 @@ function showBest() {
 function resize() {
   const st = $('stage'), r = st.getBoundingClientRect();
   renderer.resize(r.width, r.height, Math.min(2.5, window.devicePixelRatio || 1), game.table);
-  // The Launch button sits on the apron, just left of the shooter lane, so it never hides the ball.
-  const b = $('launch'), s = renderer.scale;
-  const edge = renderer.ox + game.table.plunger.x0 * s;
+  // The Launch button sits on the apron, just left of the shooter lane, so it never hides the ball. Its 72 px fit
+  // between the lane and the right flipper (about 140 mm of table) on phones 360 px wide and up; where the table is
+  // drawn smaller (a 320 px phone, or a phone on its side) the button shrinks with it, down to 48 px, the smallest
+  // that's still easy to hit.
+  const b = $('launch'), s = renderer.scale, t = game.table;
+  const f = t.flippers.filter(f => f.side === 'right').sort((a, c) => c.y - a.y)[0]; // the one by the lane
+  const room = (t.plunger.x0 - f.x - f.r0) * s - 4;
+  b.style.setProperty('--k', Math.min(72, Math.max(48, room)) / 72);
+  const edge = renderer.ox + t.plunger.x0 * s;
   b.style.right = Math.max(4, r.width - edge + 4) + 'px';
-  b.style.bottom = Math.max(6, r.height - (renderer.oy + game.table.H * s) + 6) + 'px';
+  b.style.bottom = Math.max(6, r.height - (renderer.oy + t.H * s) + 6) + 'px';
 }
 window.addEventListener('resize', resize);
 

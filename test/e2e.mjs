@@ -4,10 +4,10 @@
 // score survives a reload, that a link to a table that isn't there opens the first, plays a game of Space and one of
 // Haunted House (down to its basement and back) from the table picker, ends a game from the menu as its last ball
 // counts its bonus (it's saved once), dates a high score in the player's own time zone, fits the backbox's longest
-// messages on a 320 px phone, keeps the Launch button out of an iPhone's home indicator, follows the title card's
-// links from the keyboard, plays on over saved data it didn't write and in a window with no room for the table, covers
-// the page with its message when JavaScript is off, checks the screen slides between a table's floors, and loads once
-// more offline (sw.js must keep every file the page loads).
+// messages on a 320 px phone, keeps the Launch button out of an iPhone's home indicator and off the right flipper
+// on a small table, follows the title card's links from the keyboard, plays on over saved data it didn't write and in
+// a window with no room for the table, covers the page with its message when JavaScript is off, checks the screen
+// slides between a table's floors, and loads once more offline (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -265,7 +265,7 @@ async function launchBox(p) {
     const r = window.tilt.renderer, t = window.tilt.game.table, st = document.getElementById('stage').getBoundingClientRect();
     const f = t.flippers.filter(f => f.side === 'right').sort((a, b) => b.y - a.y)[0];
     const b = document.getElementById('launch').getBoundingClientRect();
-    return { left: b.left, bottom: b.bottom, flipper: st.left + r.ox + (f.x + f.r0) * r.scale, floor: innerHeight };
+    return { left: b.left, bottom: b.bottom, width: b.width, height: b.height, flipper: st.left + r.ox + (f.x + f.r0) * r.scale, floor: innerHeight };
   });
 }
 
@@ -279,6 +279,25 @@ let box = await launchBox(home);
 assert.ok(box.bottom <= box.floor - 34, `the Launch button comes down to ${Math.round(box.floor - box.bottom)} px from the bottom, in the home indicator's strip`);
 assert.ok(box.left >= box.flipper, 'the Launch button lifted over the home indicator covers the right flipper');
 await home.context().close();
+
+// Where the table is drawn too small for the Launch button's 72 x 78 px beside the right flipper, the button shrinks to
+// fit there instead of covering the flipper, as on a 320 px phone. On a phone on its side the table is smaller still,
+// and the button stops at 48 px wide, the smallest that's still easy to hit. From 360 px wide up it's its full size.
+async function launchIn(viewport) {
+  const p = await freshPage({ viewport });
+  await p.goto(base);
+  await p.waitForFunction(() => window.tilt);
+  const b = await launchBox(p);
+  await p.context().close();
+  return b;
+}
+box = await launchIn({ width: 320, height: 568 });
+assert.ok(box.left >= box.flipper - 1, `on a 320 px phone the Launch button covers ${Math.round(box.flipper - box.left)} px of the right flipper`);
+assert.ok(box.width >= 48 && box.width < 72, `on a 320 px phone the Launch button is ${box.width} px wide`);
+box = await launchIn({ width: 844, height: 390 });
+assert.deepEqual([box.width, box.height].map(Math.round), [48, 52], 'on a phone on its side the Launch button is not 48 px wide, the smallest');
+box = await launchIn({ width: 360, height: 640 });
+assert.deepEqual([box.width, box.height], [72, 78], 'on a phone 360 px wide the Launch button is not its full size');
 
 // On a keyboard, Enter on one of the title card's links follows it, rather than starting a game.
 for (const [i, to] of [[0, 'https://junkdrawer.works/'], [1, 'https://junkdrawer.works/privacy.html']]) {
