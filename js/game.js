@@ -53,13 +53,17 @@ export class Game {
   }
 
   // ---------- balls ----------
+  // The next ball, or an extra ball (played again under the same number), and the display says which.
   nextBall() {
-    const l = this.lamps;
+    const l = this.lamps, again = l.shootAgain;
     this.tilted = false; this.warnings = 0; this.tiltMeter = 0;
-    if (l.shootAgain) { l.shootAgain = false; this.extraBalls--; } else this.ballNo++;
+    if (again) { l.shootAgain = false; this.extraBalls--; } else this.ballNo++;
     this.serve();
+    if (this.mode === 'play') this.show(again ? 'Shoot again' : 'Ball ' + this.ballNo, again ? 1.6 : 1.2);
   }
 
+  // A ball onto the plunger. The display is told why by whatever served it: nextBall(), the ball save giving a ball
+  // back (drained()), or a table's lock serving one in place of the ball it holds.
   serve() {
     const p = this.table.plunger;
     const b = makeBall((p.x0 + p.x1) / 2, p.y - BALL_R);
@@ -68,7 +72,6 @@ export class Game {
     this.saveArmed = !this.givenBack; // a ball the ball save gave back doesn't get a second one
     this.givenBack = false;
     this.floor = 0; // a table with a basement serves every ball upstairs
-    if (this.mode === 'play') this.show('Ball ' + this.ballNo, 1.2);
   }
 
   // Balls in play: every ball on the table but any that a lock is holding.
@@ -211,7 +214,7 @@ export class Game {
       this.sound('saved');
       this.saveUntil = 0;
       this.givenBack = true;
-      this.after(0.8, () => this.serve());
+      this.after(0.8, () => { this.serve(); this.show('Ball ' + this.ballNo, 1.2); });
       this.state = 'idle';
       return;
     }
@@ -225,7 +228,7 @@ export class Game {
 
   endOfBall() {
     if (this.mode !== 'play') return; // ended from the menu meanwhile: that saved the game, so it's over already
-    if (this.lamps.shootAgain) { this.nextBall(); this.show('Shoot again', 1.6); return; } // after serve()'s "Ball N"
+    if (this.lamps.shootAgain) { this.nextBall(); return; } // which says Shoot again
     if (this.ballNo >= this.settings.balls) {
       this.state = 'idle';
       this.mode = 'over';

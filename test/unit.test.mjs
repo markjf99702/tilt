@@ -113,14 +113,14 @@ for (const table of Object.values(TABLES)) {
   });
 
   test(`${table.name}: a ball that drains with an extra ball earned says Shoot again, and the same ball comes back`, () => {
-    const shown = []; // the display shows the latest message
+    const shown = []; // what the display is told, in turn
     const g = new table.Game({ ...NORMAL, ballSave: 0 }, { show: text => shown.push(text) });
     g.start('play');
     g.lamps.shootAgain = true; g.extraBalls = 1;
     g.state = 'live'; g.world.balls[0].y = g.table.H + 100;
     for (let f = 0; f < 60 * 8 && g.state !== 'lane'; f++) { for (let i = 0; i < 17; i++) g.world.step(); g.update(1 / 60); }
     assert.equal(g.state, 'lane', 'no ball was served');
-    assert.equal(shown.at(-1), 'Shoot again');
+    assert.deepEqual(shown, ['Ball 1', 'Shoot again'], 'the extra ball is announced as Ball 1 too');
     assert.equal(g.ballNo, 1);
     assert.ok(!g.lamps.shootAgain && g.extraBalls === 0);
   });
@@ -141,6 +141,7 @@ for (const table of Object.values(TABLES)) {
     };
     drain();
     assert.equal(saves(), 1, 'a ball drained in its first seconds was not given back');
+    assert.deepEqual(shown, ['Ball 1', 'Ball saved', 'Ball 1'], 'the ball given back is not announced');
     assert.equal(g.ballNo, 1);
     assert.ok(!g.lamps.ballSave, 'the ball given back is lit for a ball save of its own');
     drain();
@@ -767,6 +768,7 @@ test('Space: a ramp lights the lock, the dock locks the ball and serves another,
   assert.equal(g.score - before, SPACE.ramp);
   intoDock(g, first);
   assert.ok(first.locked && first.held.until === Infinity, 'the ball is locked');
+  assert.deepEqual(shown, ['Lock is lit', 'Ball locked'], 'the ball served for the locked one is announced as Ball 1 too');
   assert.deepEqual([first.x, first.y], [g.table.lockSpot.x, g.table.lockSpot.y]);
   assert.equal(g.state, 'lane', 'another ball is served');
   assert.equal(g.inPlay(), 1);
