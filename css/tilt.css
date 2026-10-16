@@ -57,8 +57,11 @@ body {
 /* ---- the table ---- */
 .stage { position: fixed; left: 0; right: 0; top: var(--hud); bottom: 0; touch-action: none; }
 #table { display: block; width: 100%; height: 100%; }
+/* The table runs down to the bottom of the screen. On a phone with a home indicator (an iPhone, with Tilt added to
+   the home screen), the Launch button is lifted above the indicator's strip, so the button and the swipe home don't
+   share it. Everywhere else the inset is 0 and the button sits where it always has. */
 .launch {
-  position: absolute; width: 72px; height: 78px; border-radius: 14px;
+  position: absolute; width: 72px; height: 78px; border-radius: 14px; margin-bottom: env(safe-area-inset-bottom, 0px);
   border: 1px solid rgba(255, 165, 58, .55); background: rgba(18, 10, 2, .72); color: var(--amber);
   font: 11px/1 var(--disp); letter-spacing: .05em; cursor: pointer; overflow: hidden; touch-action: none;
   display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px;

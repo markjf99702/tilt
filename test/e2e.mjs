@@ -4,9 +4,10 @@
 // score survives a reload, that a link to a table that isn't there opens the first, plays a game of Space and one of
 // Haunted House (down to its basement and back) from the table picker, ends a game from the menu as its last ball
 // counts its bonus (it's saved once), dates a high score in the player's own time zone, fits the backbox's longest
-// messages on a 320 px phone, follows the title card's links from the keyboard, plays on over saved data it didn't
-// write and in a window with no room for the table, covers the page with its message when JavaScript is off, checks the
-// screen slides between a table's floors, and loads once more offline (sw.js must keep every file the page loads).
+// messages on a 320 px phone, keeps the Launch button out of an iPhone's home indicator, follows the title card's
+// links from the keyboard, plays on over saved data it didn't write and in a window with no room for the table, covers
+// the page with its message when JavaScript is off, checks the screen slides between a table's floors, and loads once
+// more offline (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -254,6 +255,30 @@ const cut = await small.evaluate(async () => {
 });
 assert.deepEqual(cut, [], 'cut off at the ends of the display on a 320 px phone');
 await small.context().close();
+
+// The Launch button with a ball waiting to be plunged, against the window and the table's right flipper (the one by
+// the shooter lane): the button's box, the flipper's right-hand edge and the window's height, in CSS pixels.
+async function launchBox(p) {
+  await p.evaluate(() => window.tilt.startGame());
+  await p.waitForSelector('#launch:not([hidden])');
+  return p.evaluate(() => {
+    const r = window.tilt.renderer, t = window.tilt.game.table, st = document.getElementById('stage').getBoundingClientRect();
+    const f = t.flippers.filter(f => f.side === 'right').sort((a, b) => b.y - a.y)[0];
+    const b = document.getElementById('launch').getBoundingClientRect();
+    return { left: b.left, bottom: b.bottom, flipper: st.left + r.ox + (f.x + f.r0) * r.scale, floor: innerHeight };
+  });
+}
+
+// Added to an iPhone's home screen, the table runs down into the home indicator's strip (34 px). The Launch button
+// sits above the strip, still clear of the right flipper.
+const home = await freshPage();
+await (await home.context().newCDPSession(home)).send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 47, bottom: 34, left: 0, right: 0 } });
+await home.goto(base);
+await home.waitForFunction(() => window.tilt);
+let box = await launchBox(home);
+assert.ok(box.bottom <= box.floor - 34, `the Launch button comes down to ${Math.round(box.floor - box.bottom)} px from the bottom, in the home indicator's strip`);
+assert.ok(box.left >= box.flipper, 'the Launch button lifted over the home indicator covers the right flipper');
+await home.context().close();
 
 // On a keyboard, Enter on one of the title card's links follows it, rather than starting a game.
 for (const [i, to] of [[0, 'https://junkdrawer.works/'], [1, 'https://junkdrawer.works/privacy.html']]) {
