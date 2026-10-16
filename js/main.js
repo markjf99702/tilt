@@ -16,10 +16,10 @@ setSound(store.sound !== false);
 
 // The table in the machine (see useTable below), its skin, and its rules running a game or the demo.
 let table, skin, game;
-let msgUntil = 0, msgText = '';
+const msgs = []; // the backbox display's messages: the one up, then any waiting their turn (see say())
 const out = {
   sound: (n, o) => play(n, o),
-  show: (text, secs) => { msgText = text; msgUntil = performance.now() + secs * 1000; },
+  show: (text, secs) => say(text, secs),
   over: g => gameOver(g),
 };
 let paused = false;
@@ -188,6 +188,7 @@ function startGame() {
   unlock();
   $('title').hidden = true; $('over').hidden = true; $('pause').hidden = true;
   paused = false;
+  msgs.length = 0; // nothing left over from the last game
   game.start('play');
   play('start');
 }
@@ -253,6 +254,30 @@ function gameOver(g) {
   setTimeout(() => { if (!$('over').hidden && game.mode === 'over') game.start('attract'); }, 1600);
 }
 
+// ---------- the backbox display's messages ----------
+// The display shows one message at a time. One that comes while another is up waits its turn, and the one up then
+// stays a second at most (or its own time, if that's shorter), so when one shot earns two awards both show, one after
+// the other. At most two wait: another pushes out the older of them. The same message twice running shows once.
+// Each is { text, secs, at }, `at` being when it went up, in clock milliseconds (0 until it does).
+function say(text, secs) {
+  if (game.mode !== 'play') return; // the demo behind the title card runs without them
+  const newest = msgs[msgs.length - 1];
+  if (newest?.text === text) { newest.secs = secs; if (newest === msgs[0]) newest.at = 0; return; }
+  msgs.push({ text, secs, at: 0 });
+  if (msgs.length > 3) msgs.splice(1, 1);
+}
+// The message up at clock time `now` ('' for none), taking each one down when its time is up.
+function message(now) {
+  while (msgs.length) {
+    const m = msgs[0], secs = msgs.length > 1 ? Math.min(1, m.secs) : m.secs;
+    if (!m.at) m.at = now;
+    if (now < m.at + secs * 1000) return m.text;
+    msgs.shift();
+    if (msgs.length) msgs[0].at = m.at + secs * 1000; // the next goes up as this one comes down
+  }
+  return '';
+}
+
 // ---------- the clock ----------
 let last = performance.now(), acc = 0, shownScore = -1, shownMsg = '', shownBall = '';
 function frame(now) {
@@ -272,7 +297,7 @@ function frame(now) {
 
 function hud(now) {
   const d = $('display');
-  const msg = now < msgUntil && game.mode === 'play' ? msgText : '';
+  const text = message(now), msg = game.mode === 'play' ? text : '';
   if (msg !== shownMsg) {
     shownMsg = msg;
     d.classList.toggle('msg', !!msg);

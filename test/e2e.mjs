@@ -4,10 +4,11 @@
 // score survives a reload, that a link to a table that isn't there opens the first, plays a game of Space and one of
 // Haunted House (down to its basement and back) from the table picker, ends a game from the menu as its last ball
 // counts its bonus (it's saved once), dates a high score in the player's own time zone, fits the backbox's longest
-// messages on a 320 px phone, keeps the Launch button out of an iPhone's home indicator and off the right flipper
-// on a small table, follows the title card's links from the keyboard, plays on over saved data it didn't write and in
-// a window with no room for the table, covers the page with its message when JavaScript is off, checks the screen
-// slides between a table's floors, and loads once more offline (sw.js must keep every file the page loads).
+// messages on a 320 px phone, shows them one after another when they come together, keeps the Launch button out of an
+// iPhone's home indicator and off the right flipper on a small table, follows the title card's links from the
+// keyboard, plays on over saved data it didn't write and in a window with no room for the table, covers the page with
+// its message when JavaScript is off, checks the screen slides between a table's floors, and loads once more offline
+// (sw.js must keep every file the page loads).
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -244,17 +245,64 @@ await small.tap('#startBtn');
 const cut = await small.evaluate(async () => {
   const d = document.getElementById('display'), g = window.tilt.game, cut = [];
   const frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const until = async ok => { for (const end = performance.now() + 5000; !ok() && performance.now() < end;) await frames(); };
   const fits = () => { const r = document.createRange(); r.selectNodeContents(d); return r.getBoundingClientRect().width <= d.clientWidth; };
+  // Each message waits its turn behind the one before (a second at most).
   for (const m of ['Skill shot 25,000', 'Extra ball is lit', 'Ramp for 250,000', 'Orbits 28 × 1,000', 'Ghosts 12 × 2,000', 'Bonus 54,000 × 5']) {
-    g.show(m, 30); await frames();
+    g.show(m, 1.5); await until(() => d.textContent === m);
     if (d.textContent !== m || !fits()) cut.push(m);
   }
-  g.show('', 0); g.score = 12345670; await frames();
-  if (!fits()) cut.push(d.textContent);
+  g.score = 12345670; await until(() => !d.classList.contains('msg'));
+  if (d.textContent !== '12,345,670' || !fits()) cut.push(d.textContent);
   return cut;
 });
 assert.deepEqual(cut, [], 'cut off at the ends of the display on a 320 px phone');
 await small.context().close();
+
+// When one shot earns two awards, the display shows both, one after the other: the first for a second, the next for
+// its own time. On Space, the ramp that lights the eighth planet in multiball lights the extra ball and scores the
+// jackpot, and the skill shot into the dock with the lock lit locks the ball too. Of four messages at once the display
+// shows the first and the last two, and the same one twice running shows once.
+const queue = await freshPage();
+await queue.goto(base + '?table=space');
+await queue.waitForFunction(() => window.tilt);
+const shows = await queue.evaluate(async () => {
+  const t = window.tilt, d = document.getElementById('display');
+  // What the display shows from now until it's back to the score: each message, and for how many seconds.
+  const watch = async () => {
+    const seen = [];
+    for (const end = performance.now() + 10000; performance.now() < end;) {
+      const now = await new Promise(r => requestAnimationFrame(r)), text = d.classList.contains('msg') ? d.textContent : '';
+      const last = seen.at(-1);
+      if (last && last.text !== text) last.secs = Math.round((now - last.at) / 100) / 10;
+      if (!text && last) break;
+      if (text && last?.text !== text) seen.push({ text, at: now });
+    }
+    return seen.map(s => [s.text, s.secs]);
+  };
+  t.startGame();
+  const g = t.game, l = g.lamps, shows = { ball: await watch() };
+  g.state = 'live'; l.planets = 7; l.multiball = true; l.jackpotLit = true;
+  g.ramp();
+  shows.ramp = await watch();
+  l.multiball = l.jackpotLit = false; l.lockLit = true; l.skill = true;
+  g.dock(g.world.balls[0]);
+  shows.lock = await watch();
+  for (const m of ['One', 'Two', 'Three', 'Four']) g.show(m, 1.2);
+  shows.four = await watch();
+  g.show('Danger', 1.2); g.show('Danger', 1.2); g.show('Tilt', 1.2);
+  shows.twice = await watch();
+  return shows;
+});
+const texts = seen => seen.map(([text]) => text);
+assert.deepEqual(texts(shows.ball), ['Ball 1']);
+assert.deepEqual(texts(shows.ramp), ['Extra ball is lit', 'Jackpot 100,000'], 'a ramp that earned two awards did not show both');
+assert.ok(shows.ramp[0][1] >= 0.9 && shows.ramp[0][1] < 1.5, `the first of two messages was up for ${shows.ramp[0][1]} s, not a second`);
+assert.ok(shows.ramp[1][1] >= 1.8, `the last of two messages was up for ${shows.ramp[1][1]} s, not its own 2 s`);
+assert.deepEqual(texts(shows.lock), ['Skill shot 25,000', 'Ball locked'], 'a skill shot that locked a ball did not show both, and nothing else');
+assert.deepEqual(texts(shows.four), ['One', 'Three', 'Four']);
+assert.deepEqual(texts(shows.twice), ['Danger', 'Tilt']);
+await queue.context().close();
 
 // The Launch button with a ball waiting to be plunged, against the window and the table's right flipper (the one by
 // the shooter lane): the button's box, the flipper's right-hand edge and the window's height, in CSS pixels.
