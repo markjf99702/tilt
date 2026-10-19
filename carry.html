@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Tilt</title>
+<p>Nothing to see here. This page hands Tilt's saves to Free Play.</p>
+<script>
+// Tilt moved into the Free Play arcade (https://free-play.junkdrawer.works/tilt/), and a browser keeps each address's saves apart, so its saves
+// stayed behind here. The first time Free Play opens, its shared/carry.js loads this page in a hidden frame and asks
+// for them, and this answers Free Play and nobody else, with Tilt's saves and nothing more. Nothing is removed here.
+const KEYS = ['tilt.'];
+addEventListener('message', e => {
+  if (e.origin !== 'https://free-play.junkdrawer.works' || !e.data || e.data.carry !== true) return;
+  const local = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (KEYS.some(p => key.startsWith(p))) local[key] = localStorage.getItem(key);
+    }
+  } catch { /* storage blocked here: nothing to hand over */ }
+  e.source.postMessage({ carried: { local } }, e.origin);
+});
+</script>
+</html>
